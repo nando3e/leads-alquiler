@@ -1,0 +1,14 @@
+{
+  "name": "leads-alquiler",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "node api/server.js",
+    "dev:web": "cd web && npm run dev",
+    "build:web": "cd web && npm run build",
+    "start": "node api/server.js"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
