@@ -23,8 +23,9 @@ export default function AlertRulesPage() {
 
   function load() {
     api('/api/alert-requirements')
-      .then((r) => r.json())
-      .then(setList)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setList(Array.isArray(data) ? data : []))
+      .catch(() => setList([]))
       .finally(() => setLoading(false));
   }
 
@@ -271,7 +272,7 @@ export default function AlertRulesPage() {
         <p className="text-neutral-500">Carregant...</p>
       ) : (
         <ul className="space-y-2">
-          {list.map((rule) => (
+          {(Array.isArray(list) ? list : []).map((rule) => (
             <li
               key={rule.id}
               className="bg-white rounded-xl border border-neutral-200 p-4 flex items-center justify-between"

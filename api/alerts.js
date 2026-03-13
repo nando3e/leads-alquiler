@@ -35,6 +35,10 @@ export function leadMatchesCriteria(lead, criteria) {
     const sl = (lead.situacio_laboral || '').trim();
     if (!sl || !criteria.situacio_laboral.includes(sl)) return false;
   }
+  if (criteria.intencio_contacte != null && criteria.intencio_contacte !== '') {
+    const ic = (lead.intencio_contacte || '').trim();
+    if (ic !== criteria.intencio_contacte) return false;
+  }
 
   if (criteria.tipus_immoble != null && criteria.tipus_immoble !== '') {
     const t = (lead.tipus_immoble || '').trim();
@@ -83,6 +87,23 @@ export function leadMatchesCriteria(lead, criteria) {
   if (Array.isArray(criteria.origen) && criteria.origen.length > 0) {
     const o = (lead.origen || '').trim();
     if (!o || !criteria.origen.includes(o)) return false;
+  }
+
+  if (Array.isArray(criteria.temps_ultima_empresa) && criteria.temps_ultima_empresa.length > 0) {
+    const t = (lead.temps_ultima_empresa || '').trim();
+    if (!t || !criteria.temps_ultima_empresa.includes(t)) return false;
+  }
+  if (criteria.empresa_espanyola != null && criteria.empresa_espanyola !== '') {
+    const e = (lead.empresa_espanyola || '').trim();
+    if (e !== criteria.empresa_espanyola) return false;
+  }
+  if (criteria.tipus_contracte != null && criteria.tipus_contracte !== '') {
+    const c = (lead.tipus_contracte || '').trim();
+    if (c !== criteria.tipus_contracte) return false;
+  }
+  if (Array.isArray(criteria.ingressos_netos_mensuals) && criteria.ingressos_netos_mensuals.length > 0) {
+    const i = (lead.ingressos_netos_mensuals || '').trim();
+    if (!i || !criteria.ingressos_netos_mensuals.includes(i)) return false;
   }
 
   return true;

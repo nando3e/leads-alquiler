@@ -7,6 +7,20 @@ const LANGS = [
   { code: 'en', label: 'English' },
 ];
 
+/** Pasos del flujo alquiler con referencia: shortKey (para claves alq_ref_q_<short>_es/ca/en) y etiqueta. */
+const CAPTURE_STEPS = [
+  { shortKey: 'nom', label: 'Nombre' },
+  { shortKey: 'cognoms', label: 'Apellidos' },
+  { shortKey: 'intencio', label: 'Intención (más info / concertar visita)' },
+  { shortKey: 'mascotes', label: 'Mascotas' },
+  { shortKey: 'quanta_gent', label: 'Personas que vivirán' },
+  { shortKey: 'situacio', label: 'Situación laboral' },
+  { shortKey: 'temps_empresa', label: 'Tiempo en la última empresa' },
+  { shortKey: 'empresa_esp', label: '¿Empresa española?' },
+  { shortKey: 'contracte', label: 'Tipo de contrato' },
+  { shortKey: 'ingressos', label: 'Ingreso mensual neto' },
+];
+
 function CopyField({ label, value }) {
   const [copied, setCopied] = useState(false);
   const handleCopy = useCallback(() => {
@@ -50,8 +64,9 @@ export default function ConfigPage() {
 
   useEffect(() => {
     api('/api/panel-config')
-      .then((r) => r.json())
-      .then(setConfig)
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((data) => setConfig(data && typeof data === 'object' ? data : {}))
+      .catch(() => setConfig({}))
       .finally(() => setLoading(false));
   }, [api]);
 
@@ -187,6 +202,88 @@ export default function ConfigPage() {
               </div>
             ))}
           </div>
+        </div>
+
+        <hr className="border-neutral-100" />
+        <h3 className="text-sm font-semibold text-neutral-800">Interpretación del flujo (alquiler con referencia)</h3>
+        <p className="text-xs text-neutral-500 mb-4">
+          Frases o palabras que el bot debe reconocer para cada intención o valor. Una por línea. Ayudan a interpretar respuestas en lenguaje natural.
+        </p>
+        <div className="space-y-4 mb-6">
+          <div className="rounded-lg border border-neutral-200 p-3 bg-white">
+            <label className="block text-sm font-medium text-neutral-700 mb-1">Ejemplos que significan &quot;más información&quot;</label>
+            <textarea
+              rows={3}
+              value={config.alq_ref_ejemplos_mes_info ?? ''}
+              onChange={(e) => setConfig((c) => ({ ...c, alq_ref_ejemplos_mes_info: e.target.value }))}
+              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+              placeholder="quería saber cuántos metros tiene&#10;cuántas habitaciones&#10;información sobre el piso"
+            />
+          </div>
+          <div className="rounded-lg border border-neutral-200 p-3 bg-white">
+            <label className="block text-sm font-medium text-neutral-700 mb-1">Ejemplos que significan &quot;concertar visita&quot;</label>
+            <textarea
+              rows={2}
+              value={config.alq_ref_ejemplos_concertar_visita ?? ''}
+              onChange={(e) => setConfig((c) => ({ ...c, alq_ref_ejemplos_concertar_visita: e.target.value }))}
+              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+              placeholder="quiero verlo&#10;agendar visita"
+            />
+          </div>
+          <div className="rounded-lg border border-neutral-200 p-3 bg-white">
+            <label className="block text-sm font-medium text-neutral-700 mb-1">Sinónimos contrato fijo (uno por línea)</label>
+            <textarea
+              rows={2}
+              value={config.alq_ref_sinonimos_fix ?? ''}
+              onChange={(e) => setConfig((c) => ({ ...c, alq_ref_sinonimos_fix: e.target.value }))}
+              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+              placeholder="fijo, indefinido, permanente"
+            />
+          </div>
+          <div className="rounded-lg border border-neutral-200 p-3 bg-white">
+            <label className="block text-sm font-medium text-neutral-700 mb-1">Sinónimos contrato temporal (uno por línea)</label>
+            <textarea
+              rows={2}
+              value={config.alq_ref_sinonimos_temporal ?? ''}
+              onChange={(e) => setConfig((c) => ({ ...c, alq_ref_sinonimos_temporal: e.target.value }))}
+              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+              placeholder="temporal, eventual, temporal"
+            />
+          </div>
+        </div>
+
+        <hr className="border-neutral-100" />
+        <h3 className="text-sm font-semibold text-neutral-800">Preguntas del flujo (alquiler con referencia)</h3>
+        <p className="text-xs text-neutral-500 mb-4">
+          Textos que ve el usuario en cada paso del chat. Si están vacíos, se usan los textos por defecto. Puedes editarlos para mejorar la redacción.
+        </p>
+        <div className="space-y-6">
+          {CAPTURE_STEPS.map(({ shortKey, label }) => (
+            <div key={shortKey} className="rounded-lg border border-neutral-200 p-3 bg-white">
+              <label className="block text-sm font-medium text-neutral-700 mb-2">{label}</label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {[
+                  { code: 'es', label: 'Castellano' },
+                  { code: 'ca', label: 'Català' },
+                  { code: 'en', label: 'English' },
+                ].map(({ code, label: langLabel }) => {
+                  const key = `alq_ref_q_${shortKey}_${code}`;
+                  return (
+                    <div key={key}>
+                      <span className="text-xs font-medium text-neutral-500">{langLabel}</span>
+                      <textarea
+                        rows={3}
+                        value={config[key] ?? ''}
+                        onChange={(e) => setConfig((c) => ({ ...c, [key]: e.target.value }))}
+                        className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm mt-0.5"
+                        placeholder="Vacío = texto por defecto"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
 
         <button

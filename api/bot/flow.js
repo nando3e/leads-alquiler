@@ -4,6 +4,32 @@ import { append as appendMemory, getLastN } from './memory.js';
 import { sendMessage as sendChatwoot } from './chatwoot.js';
 import { notifyAgent as sendBuilderBot } from './builderbot.js';
 import { chat, detectLang } from './agents.js';
+import { query } from '../db.js';
+import {
+  getActiveAlertRequirements,
+  leadMatchesCriteria,
+  wasAlertAlreadySent,
+  recordAlertSent,
+  updateLeadAlertSentAt,
+} from '../alerts.js';
+import { notifyN8nAlert, notifyFormularioEnviado } from '../webhook.js';
+import { notifyAdminWhatsApp, notifyAdminEmail } from '../notify.js';
+import {
+  buildAlquilerReferenceQuestion,
+  buildAlquilerReferenceSeed,
+  buildLeadPayloadFromCapture,
+  extractMultipleFields,
+  getAlquilerReferenceField,
+  getInitialAlquilerReferenceState,
+  getNextAlquilerReferenceState,
+  getNextMissingState,
+  getQuestionFromConfig,
+  getValidValuesForStep,
+  hasUsefulReference,
+  isAlquilerReferenceState,
+  isValidValueForField,
+  isValidValueForStep,
+} from './alquiler-reference.js';
 
 function normalizePhone(phone) {
   return String(phone || '').replace(/\D/g, '').replace(/^0+/, '') || null;
@@ -19,11 +45,291 @@ function describeReference(reference) {
   const parts = [];
   const tipo = reference.tipo || reference.type || null;
   const art = tipo ? `${tipo}` : 'la propiedad';
+  if (reference.ciudad) parts.push(`en ${reference.ciudad}`);
   if (reference.portal) parts.push(`de ${reference.portal}`);
-  if (reference.direccion || reference.address) parts.push(`en ${reference.direccion || reference.address}`);
+  if (reference.direccion || reference.address) parts.push(reference.direccion || reference.address);
   if (reference.precio || reference.price) parts.push(`por ${reference.precio || reference.price}`);
   if (reference.referencia_anuncio) parts.push(`(ref. ${reference.referencia_anuncio})`);
   return parts.length > 0 ? `${art} ${parts.join(', ')}` : art;
+}
+
+/**
+ * Resumen estructurado de la vivienda para que el agente pueda responder dudas (metros, habitaciones, etc.).
+ */
+function buildReferenceSummary(reference) {
+  if (!reference || typeof reference !== 'object') return '';
+  const parts = [];
+  if (reference.ciudad) parts.push(`Ciudad: ${reference.ciudad}`);
+  if (reference.precio || reference.price) parts.push(`Precio: ${reference.precio || reference.price}`);
+  if (reference.direccion || reference.address) parts.push(`Dirección: ${reference.direccion || reference.address}`);
+  if (reference.caracteristicas) parts.push(`Características: ${reference.caracteristicas}`);
+  if (reference.metros || reference.superficie) parts.push(`Superficie: ${reference.metros || reference.superficie}`);
+  if (reference.habitaciones) parts.push(`Habitaciones: ${reference.habitaciones}`);
+  return parts.join('. ');
+}
+
+function buildInsertLead(payload) {
+  const keys = Object.keys(payload);
+  const placeholders = keys.map((_, idx) => `$${idx + 1}`).join(', ');
+  return {
+    text: `INSERT INTO leads (${keys.join(', ')}, estat) VALUES (${placeholders}, 'completat') RETURNING *`,
+    values: keys.map((key) => payload[key]),
+  };
+}
+
+function buildUpdateLead(payload, id) {
+  const keys = Object.keys(payload);
+  const sets = keys.map((key, idx) => `${key} = $${idx + 1}`).join(', ');
+  return {
+    text: `UPDATE leads SET ${sets}, updated_at = now() WHERE id = $${keys.length + 1} RETURNING *`,
+    values: [...keys.map((key) => payload[key]), id],
+  };
+}
+
+async function notifyLeadAlerts(lead) {
+  const requirements = await getActiveAlertRequirements();
+  for (const req of requirements) {
+    const criteria = req.criteria || {};
+    if (!leadMatchesCriteria(lead, criteria)) continue;
+    const already = await wasAlertAlreadySent(lead.id, req.id);
+    if (already) continue;
+
+    await recordAlertSent(lead.id, req.id, lead);
+    await updateLeadAlertSentAt(lead.id);
+    await notifyN8nAlert(lead, req.name);
+    if (req.notify_whatsapp && req.admin_phone) {
+      await notifyAdminWhatsApp(req.admin_phone, lead, req.name);
+    }
+    if (req.notify_email && req.admin_email) {
+      await notifyAdminEmail(req.admin_email, lead, req.name);
+    }
+  }
+}
+
+async function persistAlquilerReferenceLead(sessionId, lang, reference, captureData) {
+  const payload = buildLeadPayloadFromCapture(sessionId, lang, reference, captureData);
+  const existing = await query(
+    "SELECT id FROM leads WHERE mobil = $1 AND estat IN ('completat', 'alerta_enviada') LIMIT 1",
+    [payload.mobil]
+  );
+
+  if (existing.rows.length > 0) {
+    const { text, values } = buildUpdateLead(payload, existing.rows[0].id);
+    const update = await query(text, values);
+    return { lead: update.rows[0], updated: true };
+  }
+
+  const { text, values } = buildInsertLead(payload);
+  const insert = await query(text, values);
+  const lead = insert.rows[0];
+  await notifyFormularioEnviado(lead);
+  await notifyLeadAlerts(lead);
+  return { lead, updated: false };
+}
+
+const CAPTURE_FIELD_NAMES = new Set([
+  'nom', 'cognoms', 'intencio_contacte', 'mascotes', 'quanta_gent_viura',
+  'situacio_laboral', 'temps_ultima_empresa', 'empresa_espanyola', 'tipus_contracte', 'ingressos_netos_mensuals',
+]);
+
+async function getCaptureAgentReply(sessionId, step, userMessage, lang, ciudad, referenceSummary = '') {
+  const history = await getLastN(sessionId, 16);
+  const vars = {
+    __lang: lang,
+    CURRENT_STEP: step,
+    VALID_VALUES: getValidValuesForStep(step),
+    CIUDAD: ciudad || '',
+    REFERENCE_SUMMARY: referenceSummary,
+  };
+  const res = await chat('captura_alquiler_ref', userMessage, history, vars);
+  if (res.type === 'tool_call' && res.tool === 'enviar_mensaje' && res.args?.content) {
+    return { type: 'message', content: res.args.content.trim() };
+  }
+  if (res.type === 'tool_call' && res.tool === 'completar_paso' && res.args?.value != null) {
+    return { type: 'completar_paso', value: String(res.args.value).trim() };
+  }
+  if (res.type === 'tool_call' && res.tool === 'capturar_datos' && res.args?.fields && typeof res.args.fields === 'object') {
+    const fields = {};
+    for (const [key, val] of Object.entries(res.args.fields)) {
+      if (CAPTURE_FIELD_NAMES.has(key) && val != null && String(val).trim() !== '') {
+        const v = String(val).trim();
+        if (isValidValueForField(key, v)) fields[key] = v;
+      }
+    }
+    if (Object.keys(fields).length > 0) {
+      return {
+        type: 'capturar_datos',
+        fields,
+        suggested_reply: res.args.suggested_reply != null ? String(res.args.suggested_reply).trim() : undefined,
+      };
+    }
+  }
+  if (res.type === 'message' && res.content?.trim()) {
+    return { type: 'message', content: res.content.trim() };
+  }
+  return null;
+}
+
+async function handleAlquilerReferenceTurn(sessionId, session, userMessage, lang, config) {
+  const ciudad = session.reference?.ciudad || '';
+
+  const extracted = extractMultipleFields(userMessage, session.capture_data || {}, config);
+  if (Object.keys(extracted).length > 0) {
+    const mergedCapture = { ...(session.capture_data || {}), ...extracted };
+    const nextState = getNextMissingState(mergedCapture);
+
+    if (!nextState) {
+      await upsertSession({
+        session_id: sessionId,
+        estado: 'completed',
+        intent: 'alquiler',
+        capture_data: mergedCapture,
+      });
+      await persistAlquilerReferenceLead(sessionId, lang, session.reference, mergedCapture);
+      const reply = await getLocalizedMsg(config, 'msg_alq_ref_completed', lang);
+      await appendMemory(sessionId, 'ai', reply);
+      return { reply, estado: 'completed', intent: 'alquiler', reference: session.reference };
+    }
+
+    await upsertSession({
+      session_id: sessionId,
+      estado: nextState,
+      intent: 'alquiler',
+      capture_data: mergedCapture,
+    });
+
+    const configNextQuestion = getQuestionFromConfig(config, nextState, lang);
+    let nextReply = configNextQuestion || buildAlquilerReferenceQuestion(nextState, lang);
+    if (!configNextQuestion) {
+      try {
+        const nextRes = await getCaptureAgentReply(
+          sessionId,
+          nextState,
+          'Genera únicamente la pregunta para este paso. Responde con enviar_mensaje.',
+          lang,
+          ciudad
+        );
+        if (nextRes?.type === 'message' && nextRes.content) nextReply = nextRes.content;
+      } catch (_) { /* use default */ }
+    }
+    await appendMemory(sessionId, 'ai', nextReply);
+    return { reply: nextReply, estado: nextState, intent: 'alquiler', reference: session.reference };
+  }
+
+  const field = getAlquilerReferenceField(session.estado);
+  const referenceSummary = buildReferenceSummary(session.reference);
+  let res = null;
+  try {
+    res = await getCaptureAgentReply(sessionId, session.estado, userMessage, lang, ciudad, referenceSummary);
+  } catch (_) { /* fallback below */ }
+
+  if (res?.type === 'capturar_datos') {
+    const mergedCapture = { ...(session.capture_data || {}), ...res.fields };
+    const nextState = getNextMissingState(mergedCapture);
+
+    if (!nextState) {
+      await upsertSession({
+        session_id: sessionId,
+        estado: 'completed',
+        intent: 'alquiler',
+        capture_data: mergedCapture,
+      });
+      await persistAlquilerReferenceLead(sessionId, lang, session.reference, mergedCapture);
+      const reply = await getLocalizedMsg(config, 'msg_alq_ref_completed', lang);
+      await appendMemory(sessionId, 'ai', reply);
+      return { reply, estado: 'completed', intent: 'alquiler', reference: session.reference };
+    }
+
+    await upsertSession({
+      session_id: sessionId,
+      estado: nextState,
+      intent: 'alquiler',
+      capture_data: mergedCapture,
+    });
+
+    const configNextQuestion = getQuestionFromConfig(config, nextState, lang);
+    let nextReply = configNextQuestion || buildAlquilerReferenceQuestion(nextState, lang);
+    if (!configNextQuestion) {
+      try {
+        const nextRes = await getCaptureAgentReply(
+          sessionId,
+          nextState,
+          'Genera únicamente la pregunta para este paso. Responde con enviar_mensaje.',
+          lang,
+          ciudad,
+          referenceSummary
+        );
+        if (nextRes?.type === 'message' && nextRes.content) nextReply = nextRes.content;
+      } catch (_) { /* use default */ }
+    }
+    const fullReply = [res.suggested_reply, nextReply].filter(Boolean).join(' ');
+    await appendMemory(sessionId, 'ai', fullReply);
+    return { reply: fullReply, estado: nextState, intent: 'alquiler', reference: session.reference };
+  }
+
+  if (!res) {
+    const reply = buildAlquilerReferenceQuestion(session.estado, lang, true);
+    await appendMemory(sessionId, 'ai', reply);
+    return { reply, estado: session.estado, intent: 'alquiler', reference: session.reference };
+  }
+
+  if (res.type === 'message') {
+    await appendMemory(sessionId, 'ai', res.content);
+    return { reply: res.content, estado: session.estado, intent: 'alquiler', reference: session.reference };
+  }
+
+  if (res.type === 'completar_paso') {
+    const value = res.value;
+    if (!isValidValueForStep(session.estado, value)) {
+      const reply = buildAlquilerReferenceQuestion(session.estado, lang, true);
+      await appendMemory(sessionId, 'ai', reply);
+      return { reply, estado: session.estado, intent: 'alquiler', reference: session.reference };
+    }
+    const nextCapture = { [field]: value };
+    const mergedCapture = { ...(session.capture_data || {}), ...nextCapture };
+    const nextState = getNextMissingState(mergedCapture);
+
+    if (!nextState) {
+      await upsertSession({
+        session_id: sessionId,
+        estado: 'completed',
+        intent: 'alquiler',
+        capture_data: mergedCapture,
+      });
+      await persistAlquilerReferenceLead(sessionId, lang, session.reference, mergedCapture);
+      const reply = await getLocalizedMsg(config, 'msg_alq_ref_completed', lang);
+      await appendMemory(sessionId, 'ai', reply);
+      return { reply, estado: 'completed', intent: 'alquiler', reference: session.reference };
+    }
+
+    await upsertSession({
+      session_id: sessionId,
+      estado: nextState,
+      intent: 'alquiler',
+      capture_data: mergedCapture,
+    });
+
+    const configNextQuestion = getQuestionFromConfig(config, nextState, lang);
+    let nextReply = configNextQuestion || buildAlquilerReferenceQuestion(nextState, lang);
+    if (!configNextQuestion) {
+      try {
+        const nextRes = await getCaptureAgentReply(
+          sessionId,
+          nextState,
+          'Genera únicamente la pregunta para este paso. Responde con enviar_mensaje.',
+          lang,
+          ciudad
+        );
+        if (nextRes?.type === 'message' && nextRes.content) nextReply = nextRes.content;
+      } catch (_) { /* use default */ }
+    }
+    await appendMemory(sessionId, 'ai', nextReply);
+    return { reply: nextReply, estado: nextState, intent: 'alquiler', reference: session.reference };
+  }
+
+  const reply = buildAlquilerReferenceQuestion(session.estado, lang, true);
+  await appendMemory(sessionId, 'ai', reply);
+  return { reply, estado: session.estado, intent: 'alquiler', reference: session.reference };
 }
 
 /**
@@ -104,6 +410,10 @@ async function runBotTurn(sessionId, aggregatedContent, { accountId, conversatio
     return { reply, estado: 'qualifying', intent: null, reference: null };
   }
 
+  if (isAlquilerReferenceState(estado)) {
+    return handleAlquilerReferenceTurn(sessionId, session, aggregatedContent, lang, config);
+  }
+
   // ── Cualificación: agente con tool calling ─────────────────────────────────
   const result = await chat('qualificador', aggregatedContent, history, { APP_NAME: appName, __lang: lang });
 
@@ -113,6 +423,36 @@ async function runBotTurn(sessionId, aggregatedContent, { accountId, conversatio
 
     // ── ALQUILER ──────────────────────────────────────────────────────────────
     if (intent === 'alquiler') {
+      if (hasUsefulReference(reference)) {
+        const startState = getInitialAlquilerReferenceState();
+        const seed = buildAlquilerReferenceSeed(sessionId, lang, reference);
+        const ciudad = reference?.ciudad || '';
+        const configQuestion = getQuestionFromConfig(config, startState, lang);
+        let msg = configQuestion || buildAlquilerReferenceQuestion(startState, lang);
+        if (!configQuestion) {
+          try {
+            const refSummary = buildReferenceSummary(reference);
+            const firstRes = await getCaptureAgentReply(
+              sessionId,
+              startState,
+              'Genera la pregunta inicial para este paso. Si hay ciudad, menciónala (ej. esa vivienda en Barcelona). Responde con enviar_mensaje.',
+              lang,
+              ciudad,
+              refSummary
+            );
+            if (firstRes?.type === 'message' && firstRes.content) msg = firstRes.content;
+          } catch (_) { /* use default */ }
+        }
+        await upsertSession({
+          session_id: sessionId,
+          estado: startState,
+          intent: 'alquiler',
+          reference,
+          capture_data: seed,
+        });
+        await appendMemory(sessionId, 'ai', msg);
+        return { reply: msg, estado: startState, intent: 'alquiler', reference };
+      }
       const formUrl = `${formBase}/form?lang=${lang}`;
       const refDesc = describeReference(reference);
       const msgKey = refDesc ? 'msg_form_link_ref' : 'msg_form_link';

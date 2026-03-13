@@ -2,7 +2,7 @@ import { query } from '../db.js';
 
 export async function getSession(sessionId) {
   const r = await query(
-    'SELECT session_id, estado, intent, reference, lang, account_id, conversation_id, created_at, updated_at FROM chat_sessions WHERE session_id = $1',
+    'SELECT session_id, estado, intent, reference, capture_data, lang, account_id, conversation_id, created_at, updated_at FROM chat_sessions WHERE session_id = $1',
     [sessionId]
   );
   return r.rows[0] || null;
@@ -24,14 +24,24 @@ export async function upsertSession(data) {
     const estado = data.estado ?? 'new';
     const intent = data.intent ?? null;
     const reference = data.reference ?? null;
+    const capture_data = data.capture_data ?? null;
     const lang = data.lang ?? null;
     const account_id = data.account_id ?? null;
     const conversation_id = data.conversation_id ?? null;
 
     await query(
-      `INSERT INTO chat_sessions (session_id, estado, intent, reference, lang, account_id, conversation_id, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, now())`,
-      [session_id, estado, intent, reference ? JSON.stringify(reference) : null, lang, account_id, conversation_id]
+      `INSERT INTO chat_sessions (session_id, estado, intent, reference, capture_data, lang, account_id, conversation_id, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now())`,
+      [
+        session_id,
+        estado,
+        intent,
+        reference ? JSON.stringify(reference) : null,
+        capture_data ? JSON.stringify(capture_data) : null,
+        lang,
+        account_id,
+        conversation_id,
+      ]
     );
     return getSession(session_id);
   }
@@ -44,6 +54,13 @@ export async function upsertSession(data) {
   if ('estado' in data) { updates.push(`estado = $${idx++}`); values.push(data.estado); }
   if ('intent' in data) { updates.push(`intent = $${idx++}`); values.push(data.intent); }
   if ('reference' in data) { updates.push(`reference = $${idx++}`); values.push(data.reference ? JSON.stringify(data.reference) : null); }
+  if ('capture_data' in data) {
+    const merged = data.capture_data == null
+      ? null
+      : { ...(existing.capture_data || {}), ...data.capture_data };
+    updates.push(`capture_data = $${idx++}`);
+    values.push(merged ? JSON.stringify(merged) : null);
+  }
   if ('lang' in data) { updates.push(`lang = $${idx++}`); values.push(data.lang); }
   if ('account_id' in data && data.account_id != null) { updates.push(`account_id = $${idx++}`); values.push(data.account_id); }
   if ('conversation_id' in data && data.conversation_id != null) { updates.push(`conversation_id = $${idx++}`); values.push(data.conversation_id); }

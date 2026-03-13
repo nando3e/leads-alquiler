@@ -16,10 +16,18 @@ const LEAD_COLUMNS = [
   'nom', 'cognoms', 'dni_nie', 'mobil', 'fix',
   'tipus_immoble', 'preu_max_mensual', 'moblat', 'habitacions_min', 'banys_min',
   'parking', 'ascensor', 'calefaccio', 'altres', 'zona', 'zona_altres',
-  'origen', 'referencia', 'situacio_laboral', 'sector_professio', 'edat',
+  'origen', 'referencia', 'intencio_contacte', 'situacio_laboral', 'sector_professio',
+  'temps_ultima_empresa', 'empresa_espanyola', 'tipus_contracte', 'ingressos_netos_mensuals',
+  'edat',
   'mascotes', 'quanta_gent_viura', 'menors', 'observacions',
   'lang', 'whatsapp_number',
 ];
+
+const REQUIRED_LABOR_FIELDS = ['temps_ultima_empresa', 'empresa_espanyola', 'tipus_contracte', 'ingressos_netos_mensuals'];
+const VALID_TEMPS_ULTIMA_EMPRESA = ['menys_dun_any', 'dun_a_dos_anys', 'mes_de_dos_anys'];
+const VALID_EMPRESA_ESPANYOLA = ['si', 'no'];
+const VALID_TIPUS_CONTRACTE = ['fix', 'temporal'];
+const VALID_INGRESSOS = ['menys_1600', '1600_2000', '2000_2400'];
 
 // Valores por defecto para columnas NOT NULL cuando el form envía vacío (evita 500)
 const NOT_NULL_DEFAULTS = {
@@ -74,6 +82,26 @@ function buildUpdateLead(body) {
   };
 }
 
+function validateLaborFields(body) {
+  for (const key of REQUIRED_LABOR_FIELDS) {
+    const v = (body[key] || '').trim();
+    if (!v) return { ok: false, message: `Falta el campo obligatorio: ${key}.` };
+  }
+  if (!VALID_TEMPS_ULTIMA_EMPRESA.includes((body.temps_ultima_empresa || '').trim())) {
+    return { ok: false, message: 'Valor no válido en tiempo en la última empresa.' };
+  }
+  if (!VALID_EMPRESA_ESPANYOLA.includes((body.empresa_espanyola || '').trim())) {
+    return { ok: false, message: 'Valor no válido en empresa española.' };
+  }
+  if (!VALID_TIPUS_CONTRACTE.includes((body.tipus_contracte || '').trim())) {
+    return { ok: false, message: 'Valor no válido en tipo de contrato.' };
+  }
+  if (!VALID_INGRESSOS.includes((body.ingressos_netos_mensuals || '').trim())) {
+    return { ok: false, message: 'Valor no válido en ingreso mensual neto.' };
+  }
+  return { ok: true };
+}
+
 export async function postLead(req, res) {
   try {
     const body = req.body || {};
@@ -81,6 +109,10 @@ export async function postLead(req, res) {
     const mobil = (body.mobil || '').trim();
     if (!mobil) {
       return res.status(400).json({ error: 'mobil_required', message: 'El teléfono es obligatorio.' });
+    }
+    const laborCheck = validateLaborFields(body);
+    if (!laborCheck.ok) {
+      return res.status(400).json({ error: 'validation', message: laborCheck.message });
     }
 
     const existing = await query(
@@ -185,6 +217,11 @@ export async function getLeads(req, res) {
     const zona = req.query.zona;
     const estat = req.query.estat;
     const origen = req.query.origen;
+    const intencio_contacte = req.query.intencio_contacte;
+    const temps_ultima_empresa = req.query.temps_ultima_empresa;
+    const empresa_espanyola = req.query.empresa_espanyola;
+    const tipus_contracte = req.query.tipus_contracte;
+    const ingressos_netos_mensuals = req.query.ingressos_netos_mensuals;
 
     let where = [];
     let params = [];
@@ -208,6 +245,31 @@ export async function getLeads(req, res) {
     if (origen) {
       where.push(`origen = $${idx}`);
       params.push(origen);
+      idx++;
+    }
+    if (intencio_contacte) {
+      where.push(`intencio_contacte = $${idx}`);
+      params.push(intencio_contacte);
+      idx++;
+    }
+    if (temps_ultima_empresa) {
+      where.push(`temps_ultima_empresa = $${idx}`);
+      params.push(temps_ultima_empresa);
+      idx++;
+    }
+    if (empresa_espanyola) {
+      where.push(`empresa_espanyola = $${idx}`);
+      params.push(empresa_espanyola);
+      idx++;
+    }
+    if (tipus_contracte) {
+      where.push(`tipus_contracte = $${idx}`);
+      params.push(tipus_contracte);
+      idx++;
+    }
+    if (ingressos_netos_mensuals) {
+      where.push(`ingressos_netos_mensuals = $${idx}`);
+      params.push(ingressos_netos_mensuals);
       idx++;
     }
 
@@ -297,6 +359,11 @@ export async function exportCsv(req, res) {
     const zona = req.query.zona;
     const estat = req.query.estat;
     const origen = req.query.origen;
+    const intencio_contacte = req.query.intencio_contacte;
+    const temps_ultima_empresa = req.query.temps_ultima_empresa;
+    const empresa_espanyola = req.query.empresa_espanyola;
+    const tipus_contracte = req.query.tipus_contracte;
+    const ingressos_netos_mensuals = req.query.ingressos_netos_mensuals;
 
     let where = [];
     let params = [];
@@ -309,6 +376,11 @@ export async function exportCsv(req, res) {
     if (zona) { where.push(`zona = $${idx}`); params.push(zona); idx++; }
     if (estat) { where.push(`estat = $${idx}`); params.push(estat); idx++; }
     if (origen) { where.push(`origen = $${idx}`); params.push(origen); idx++; }
+    if (intencio_contacte) { where.push(`intencio_contacte = $${idx}`); params.push(intencio_contacte); idx++; }
+    if (temps_ultima_empresa) { where.push(`temps_ultima_empresa = $${idx}`); params.push(temps_ultima_empresa); idx++; }
+    if (empresa_espanyola) { where.push(`empresa_espanyola = $${idx}`); params.push(empresa_espanyola); idx++; }
+    if (tipus_contracte) { where.push(`tipus_contracte = $${idx}`); params.push(tipus_contracte); idx++; }
+    if (ingressos_netos_mensuals) { where.push(`ingressos_netos_mensuals = $${idx}`); params.push(ingressos_netos_mensuals); idx++; }
     const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
     const r = await query(

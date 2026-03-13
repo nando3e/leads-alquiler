@@ -15,6 +15,11 @@ export default function LeadsPage() {
   const [search, setSearch] = useState('');
   const [zona, setZona] = useState('');
   const [estat, setEstat] = useState('');
+  const [intencioContacte, setIntencioContacte] = useState('');
+  const [tempsUltimaEmpresa, setTempsUltimaEmpresa] = useState('');
+  const [empresaEspanyola, setEmpresaEspanyola] = useState('');
+  const [tipusContracte, setTipusContracte] = useState('');
+  const [ingressosNetos, setIngressosNetos] = useState('');
   const [visibleCols, setVisibleCols] = useState(getVisibleColumns);
   const [showColPicker, setShowColPicker] = useState(false);
 
@@ -25,17 +30,24 @@ export default function LeadsPage() {
     if (search) params.set('search', search);
     if (zona) params.set('zona', zona);
     if (estat) params.set('estat', estat);
+    if (intencioContacte) params.set('intencio_contacte', intencioContacte);
+    if (tempsUltimaEmpresa) params.set('temps_ultima_empresa', tempsUltimaEmpresa);
+    if (empresaEspanyola) params.set('empresa_espanyola', empresaEspanyola);
+    if (tipusContracte) params.set('tipus_contracte', tipusContracte);
+    if (ingressosNetos) params.set('ingressos_netos_mensuals', ingressosNetos);
     api(`/api/leads?${params}`)
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : { items: [], total: 0, page: 1, totalPages: 0 }))
       .then((d) => {
-        if (!cancelled) setData(d);
+        if (!cancelled) setData({ items: Array.isArray(d?.items) ? d.items : [], total: d?.total ?? 0, page: d?.page ?? 1, totalPages: d?.totalPages ?? 0 });
       })
-      .catch(() => {})
+      .catch(() => {
+        if (!cancelled) setData({ items: [], total: 0, page: 1, totalPages: 0 });
+      })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [api, page, search, zona, estat]);
+  }, [api, page, search, zona, estat, intencioContacte, tempsUltimaEmpresa, empresaEspanyola, tipusContracte, ingressosNetos]);
 
   function toggleColumn(key) {
     const next = visibleCols.includes(key)
@@ -50,6 +62,11 @@ export default function LeadsPage() {
     if (search) params.set('search', search);
     if (zona) params.set('zona', zona);
     if (estat) params.set('estat', estat);
+    if (intencioContacte) params.set('intencio_contacte', intencioContacte);
+    if (tempsUltimaEmpresa) params.set('temps_ultima_empresa', tempsUltimaEmpresa);
+    if (empresaEspanyola) params.set('empresa_espanyola', empresaEspanyola);
+    if (tipusContracte) params.set('tipus_contracte', tipusContracte);
+    if (ingressosNetos) params.set('ingressos_netos_mensuals', ingressosNetos);
     const r = await api(`/api/leads/export?${params}`);
     if (!r.ok) return;
     const blob = await r.blob();
@@ -91,6 +108,53 @@ export default function LeadsPage() {
           <option value="">Tots els estats</option>
           <option value="completat">Completat</option>
           <option value="alerta_enviada">Alerta enviada</option>
+        </select>
+        <select
+          value={intencioContacte}
+          onChange={(e) => { setIntencioContacte(e.target.value); setPage(1); }}
+          className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+        >
+          <option value="">Intenció contacte</option>
+          <option value="mes_info">Més info</option>
+          <option value="concertar_visita">Concertar visita</option>
+        </select>
+        <select
+          value={tempsUltimaEmpresa}
+          onChange={(e) => { setTempsUltimaEmpresa(e.target.value); setPage(1); }}
+          className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+        >
+          <option value="">Temps última empresa</option>
+          <option value="menys_dun_any">Menys d&apos;un any</option>
+          <option value="dun_a_dos_anys">D&apos;un a dos anys</option>
+          <option value="mes_de_dos_anys">Més de dos anys</option>
+        </select>
+        <select
+          value={empresaEspanyola}
+          onChange={(e) => { setEmpresaEspanyola(e.target.value); setPage(1); }}
+          className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+        >
+          <option value="">Empresa esp.</option>
+          <option value="si">Sí</option>
+          <option value="no">No</option>
+        </select>
+        <select
+          value={tipusContracte}
+          onChange={(e) => { setTipusContracte(e.target.value); setPage(1); }}
+          className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+        >
+          <option value="">Contracte</option>
+          <option value="fix">Fix</option>
+          <option value="temporal">Temporal</option>
+        </select>
+        <select
+          value={ingressosNetos}
+          onChange={(e) => { setIngressosNetos(e.target.value); setPage(1); }}
+          className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+        >
+          <option value="">Ingressos</option>
+          <option value="menys_1600">&lt; 1.600</option>
+          <option value="1600_2000">1.600-2.000</option>
+          <option value="2000_2400">2.000-2.400</option>
         </select>
         <div className="relative">
           <button

@@ -2,8 +2,9 @@
 #
 # - Sin puertos expuestos: Traefik enruta por dominio (dokploy-network).
 # - La API no se expone al host. Nginx en "web" hace proxy de /api → contenedor api.
-# - Postgres no se incluye: se usa el ${CLIENT_KEY}-postgres del compose del cliente.
-#   Para ello la API se une a ${CLIENT_KEY}_chatbot-network (red interna del otro compose).
+# - Postgres no se incluye aquí: se conecta a la red del compose del cliente (chatbot-network).
+#   REQUISITO: la red ${CLIENT_KEY}_chatbot-network debe existir antes del primer despliegue.
+#   Puedes crearla manualmente: docker network create ${CLIENT_KEY}_chatbot-network
 # - DATABASE_URL usa el hostname interno: ${CLIENT_KEY}-postgres:5432
 
 services:
@@ -26,8 +27,9 @@ services:
       context: ./web
       dockerfile: Dockerfile
       args:
-        # La variable que usa Vite en build time para la URL pública (si se necesita)
-        VITE_API_PUBLIC_URL: ""
+        # URL pública de la API solo necesaria si el frontend se sirve desde un dominio
+        # diferente al de la API. Con nginx proxy del mismo dominio, dejar vacío.
+        VITE_API_PUBLIC_URL: ${VITE_API_PUBLIC_URL:-}
     container_name: ${CLIENT_KEY}-leads-web
     restart: unless-stopped
     depends_on:
@@ -37,18 +39,32 @@ services:
       - dokploy-network  # para Traefik
     labels:
       - "traefik.enable=true"
+
+      # ── Router HTTPS (principal) ──────────────────────────────────────────
       - "traefik.http.routers.${CLIENT_KEY}-leads.rule=Host(`${DOMAIN}`)"
       - "traefik.http.routers.${CLIENT_KEY}-leads.entrypoints=websecure"
+      - "traefik.http.routers.${CLIENT_KEY}-leads.tls=true"
       - "traefik.http.routers.${CLIENT_KEY}-leads.tls.certresolver=letsencrypt"
       - "traefik.http.services.${CLIENT_KEY}-leads.loadbalancer.server.port=80"
+
+      # ── Router HTTP → redirección permanente a HTTPS ──────────────────────
+      - "traefik.http.routers.${CLIENT_KEY}-leads-http.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.${CLIENT_KEY}-leads-http.entrypoints=web"
+      - "traefik.http.routers.${CLIENT_KEY}-leads-http.middlewares=${CLIENT_KEY}-leads-https-redirect"
+      - "traefik.http.middlewares.${CLIENT_KEY}-leads-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.${CLIENT_KEY}-leads-https-redirect.redirectscheme.permanent=true"
 
 networks:
   leads-internal:
     driver: bridge
 
+  # Red del compose del cliente (postgres, chatwoot…).
+  # Debe existir antes de arrancar este compose.
+  # Crear si no existe: docker network create ${CLIENT_KEY}_chatbot-network
   chatbot-network:
     external: true
-    name: ${CLIENT_KEY}_chatbot-network  # nombre real que Docker asigna al compose del cliente
+    name: ${CLIENT_KEY}_chatbot-network
 
+  # Red de Traefik gestionada por Dokploy. No modificar el nombre.
   dokploy-network:
     external: true

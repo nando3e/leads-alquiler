@@ -15,6 +15,14 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const SQL_FILES = [
   resolve(__dirname, '../scripts/001_create_tables.sql'),
   resolve(__dirname, '../scripts/002_chat_tables.sql'),
+  resolve(__dirname, '../scripts/003_leads_empleo_ingresos.sql'),
+  resolve(__dirname, '../scripts/004_chat_capture_alquiler_ref.sql'),
+  resolve(__dirname, '../scripts/005_agent_captura_alquiler_ref.sql'),
+  resolve(__dirname, '../scripts/006_captura_agent_prompt_flow.sql'),
+  resolve(__dirname, '../scripts/007_alq_ref_questions_config.sql'),
+  resolve(__dirname, '../scripts/008_captura_agent_capturar_datos.sql'),
+  resolve(__dirname, '../scripts/009_alq_ref_interpretacion.sql'),
+  resolve(__dirname, '../scripts/010_ensure_agents.sql'),
 ];
 
 function parseConnectionString(url) {
@@ -60,7 +68,12 @@ export async function runMigrations() {
       console.log(`[migrate] Running ${file.split(/[/\\]/).pop()}...`);
       await client.query(sql);
     }
-    console.log('[migrate] All migrations applied.');
+    const check = await client.query("SELECT 1 FROM agent_configs LIMIT 1").catch((e) => ({ error: e }));
+    if (check.error) {
+      console.warn('[migrate] Warning: agent_configs not readable:', check.error.message);
+    } else {
+      console.log('[migrate] All migrations applied.');
+    }
   } finally {
     await client.end();
   }

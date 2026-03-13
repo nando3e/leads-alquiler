@@ -107,6 +107,48 @@ export const RULE_FIELDS = [
     options: ['empleat', 'autonom', 'aturat', 'estudiant', 'jubilat', 'altres'],
   },
   {
+    key: 'intencio_contacte',
+    label: 'Intenció de contacte',
+    type: 'select',
+    options: [
+      { value: '', label: '—' },
+      { value: 'mes_info', label: 'Més info' },
+      { value: 'concertar_visita', label: 'Concertar visita' },
+    ],
+  },
+  {
+    key: 'temps_ultima_empresa',
+    label: 'Temps a l\'última empresa',
+    type: 'multi',
+    options: ['menys_dun_any', 'dun_a_dos_anys', 'mes_de_dos_anys'],
+  },
+  {
+    key: 'empresa_espanyola',
+    label: 'Empresa espanyola',
+    type: 'select',
+    options: [
+      { value: '', label: '—' },
+      { value: 'si', label: 'Sí' },
+      { value: 'no', label: 'No' },
+    ],
+  },
+  {
+    key: 'tipus_contracte',
+    label: 'Tipus de contracte',
+    type: 'select',
+    options: [
+      { value: '', label: '—' },
+      { value: 'fix', label: 'Fix' },
+      { value: 'temporal', label: 'Temporal' },
+    ],
+  },
+  {
+    key: 'ingressos_netos_mensuals',
+    label: 'Ingressos netos mensuals',
+    type: 'multi',
+    options: ['menys_1600', '1600_2000', '2000_2400'],
+  },
+  {
     key: 'mascotes',
     label: 'Mascotes',
     type: 'select',
@@ -154,7 +196,7 @@ export function criteriaFromForm(enabled, values) {
     if (!enabled[f.key]) continue;
     const v = values[f.key];
     if (v === undefined || v === '' || (Array.isArray(v) && v.length === 0)) continue;
-    if (f.key === 'zones' || f.key === 'situacio_laboral' || f.key === 'origen') {
+    if (f.key === 'zones' || f.key === 'situacio_laboral' || f.key === 'origen' || f.key === 'temps_ultima_empresa' || f.key === 'ingressos_netos_mensuals') {
       criteria[f.key] = Array.isArray(v) ? v : [v];
     } else {
       criteria[f.key] = v;

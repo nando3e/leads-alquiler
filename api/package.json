@@ -3,7 +3,8 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "test": "node --test bot/alquiler-reference.test.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

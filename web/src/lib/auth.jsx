@@ -13,8 +13,10 @@ export function AuthProvider({ children }) {
     }
   });
 
+  const apiBase = import.meta.env.VITE_API_URL || '';
+
   const login = useCallback(async (username, password) => {
-    const res = await fetch('/api/auth/login', {
+    const res = await fetch(`${apiBase}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
@@ -43,7 +45,17 @@ export function AuthProvider({ children }) {
       const t = localStorage.getItem('token');
       const headers = { ...options.headers };
       if (t) headers.Authorization = `Bearer ${t}`;
-      return fetch(path, { ...options, headers });
+      const url = path.startsWith('http') ? path : `${apiBase}${path.startsWith('/') ? '' : '/'}${path}`;
+      return fetch(url, { ...options, headers }).then((r) => {
+        if (r.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          setTokenState(null);
+          setUser(null);
+          return Promise.reject(new Error('Unauthorized'));
+        }
+        return r;
+      });
     },
     []
   );

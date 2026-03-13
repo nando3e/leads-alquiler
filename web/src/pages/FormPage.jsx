@@ -30,6 +30,24 @@ const SITUACIO_OPTS = [
   { value: 'altres', labelKey: 'altres' },
 ];
 const QUANTA_GENT_OPTS = ['1', '2', '3', '4', '5', '6_mes'];
+const TEMPS_ULTIMA_EMPRESA_OPTS = [
+  { value: 'menys_dun_any', labelKey: 'temps_menys_dun_any' },
+  { value: 'dun_a_dos_anys', labelKey: 'temps_dun_a_dos_anys' },
+  { value: 'mes_de_dos_anys', labelKey: 'temps_mes_de_dos_anys' },
+];
+const EMPRESA_ESPANYOLA_OPTS = [
+  { value: 'si', labelKey: 'si' },
+  { value: 'no', labelKey: 'no' },
+];
+const TIPUS_CONTRACTE_OPTS = [
+  { value: 'fix', labelKey: 'tipus_fix' },
+  { value: 'temporal', labelKey: 'tipus_temporal' },
+];
+const INGRESSOS_OPTS = [
+  { value: 'menys_1600', labelKey: 'ingressos_menys_1600' },
+  { value: '1600_2000', labelKey: 'ingressos_1600_2000' },
+  { value: '2000_2400', labelKey: 'ingressos_2000_2400' },
+];
 
 export default function FormPage() {
   const [searchParams] = useSearchParams();
@@ -43,7 +61,9 @@ export default function FormPage() {
     tipus_immoble: 'no_importa', preu_max_mensual: '', moblat: 'no_importa',
     habitacions_min: '', banys_min: '', parking: 'no_importa', ascensor: 'no_importa', calefaccio: 'no_importa',
     altres: '', zona: '', zona_altres: '',
-    situacio_laboral: '', sector_professio: '', edat: '', mascotes: 'no',
+    situacio_laboral: '', sector_professio: '',
+    temps_ultima_empresa: '', empresa_espanyola: '', tipus_contracte: '', ingressos_netos_mensuals: '',
+    edat: '', mascotes: 'no',
     quanta_gent_viura: '', menors: '', observacions: '',
     lang: 'ca', whatsapp_number: '',
   });
@@ -73,6 +93,11 @@ export default function FormPage() {
     setLoading(true);
     const payload = { ...form, lang };
     if (!payload.mobil?.trim()) {
+      setError(t.required);
+      setLoading(false);
+      return;
+    }
+    if (!payload.temps_ultima_empresa || !payload.empresa_espanyola || !payload.tipus_contracte || !payload.ingressos_netos_mensuals) {
       setError(t.required);
       setLoading(false);
       return;
@@ -290,6 +315,42 @@ export default function FormPage() {
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-1">{t.sector_professio}</label>
               <input type="text" value={form.sector_professio} onChange={(e) => update('sector_professio', e.target.value)} className="input" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1">{t.temps_ultima_empresa} *</label>
+              <select value={form.temps_ultima_empresa} onChange={(e) => update('temps_ultima_empresa', e.target.value)} className="input" required>
+                <option value="">—</option>
+                {TEMPS_ULTIMA_EMPRESA_OPTS.map((o) => (
+                  <option key={o.value} value={o.value}>{t[o.labelKey]}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1">{t.empresa_espanyola} *</label>
+              <select value={form.empresa_espanyola} onChange={(e) => update('empresa_espanyola', e.target.value)} className="input" required>
+                <option value="">—</option>
+                {EMPRESA_ESPANYOLA_OPTS.map((o) => (
+                  <option key={o.value} value={o.value}>{t[o.labelKey]}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1">{t.tipus_contracte} *</label>
+              <select value={form.tipus_contracte} onChange={(e) => update('tipus_contracte', e.target.value)} className="input" required>
+                <option value="">—</option>
+                {TIPUS_CONTRACTE_OPTS.map((o) => (
+                  <option key={o.value} value={o.value}>{t[o.labelKey]}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1">{t.ingressos_netos_mensuals} *</label>
+              <select value={form.ingressos_netos_mensuals} onChange={(e) => update('ingressos_netos_mensuals', e.target.value)} className="input" required>
+                <option value="">—</option>
+                {INGRESSOS_OPTS.map((o) => (
+                  <option key={o.value} value={o.value}>{t[o.labelKey]}</option>
+                ))}
+              </select>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>

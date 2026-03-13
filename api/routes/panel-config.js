@@ -11,7 +11,8 @@ export async function getAll(req, res) {
     return res.json(config);
   } catch (err) {
     console.error('getAll panel_config', err);
-    return res.status(500).json({ error: 'server_error' });
+    const detail = process.env.NODE_ENV !== 'production' ? err.message : undefined;
+    return res.status(500).json({ error: 'server_error', ...(detail && { detail }) });
   }
 }
 

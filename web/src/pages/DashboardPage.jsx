@@ -27,8 +27,9 @@ export default function DashboardPage() {
     if (periodFrom) params.set('from', periodFrom);
     if (periodTo) params.set('to', periodTo);
     api(`/api/dashboard/stats?${params}`)
-      .then((r) => r.json())
-      .then(setStats)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setStats(data && typeof data === 'object' ? data : { total: 0, new_today: 0, new_this_week: 0, new_period: null, filters: {} }))
+      .catch(() => setStats({ total: 0, new_today: 0, new_this_week: 0, new_period: null, filters: {} }))
       .finally(() => setLoading(false));
   }
 

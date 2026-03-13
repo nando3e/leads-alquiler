@@ -27,11 +27,11 @@ const FINALIZAR_TOOL = {
         reference: {
           type: 'object',
           description:
-            'Datos identificativos de la propiedad: portal (idealista, fotocasa...), precio, ' +
-            'direccion, referencia_anuncio, caracteristicas, etc. Null si no tiene ninguna en mente.',
+            'Datos identificativos de la propiedad: portal, ciudad, precio, direccion, referencia_anuncio, etc. Null si no tiene ninguna en mente. Incluye siempre ciudad cuando la sepas (ej. Barcelona, Olot).',
           nullable: true,
           properties: {
             portal: { type: 'string' },
+            ciudad: { type: 'string', description: 'Ciudad o localidad de la propiedad' },
             precio: { type: 'string' },
             direccion: { type: 'string' },
             referencia_anuncio: { type: 'string' },
@@ -53,6 +53,65 @@ const FINALIZAR_TOOL = {
     },
   },
 };
+
+/** Herramientas del agente de captura conversacional (alquiler con referencia). */
+const CAPTURE_TOOLS = [
+  {
+    type: 'function',
+    function: {
+      name: 'enviar_mensaje',
+      description:
+        'Envía un mensaje al usuario: explicación, repregunta o la siguiente pregunta del flujo. Úsalo cuando el usuario pregunte algo (ej. "qué es cuenta ajena?"), cuando la respuesta no sea clara, o cuando debas mostrar la pregunta del paso actual.',
+      parameters: {
+        type: 'object',
+        properties: {
+          content: { type: 'string', description: 'Texto del mensaje a enviar (en el idioma del usuario)' },
+        },
+        required: ['content'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'completar_paso',
+      description:
+        'Llama cuando el usuario ha dado una respuesta clara y puedes normalizarla a uno de los valores válidos del paso actual. El valor debe ser exactamente uno de los listados en VALID_VALUES para este paso.',
+      parameters: {
+        type: 'object',
+        properties: {
+          value: { type: 'string', description: 'Valor normalizado (ej. empleat, si, menys_1600)' },
+        },
+        required: ['value'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'capturar_datos',
+      description:
+        'Llama cuando del mensaje del usuario puedes extraer uno o varios campos a la vez (ej. nombre y apellidos juntos, o intención + mascotas). Incluye solo campos que puedas normalizar correctamente. El backend validará cada uno.',
+      parameters: {
+        type: 'object',
+        properties: {
+          fields: {
+            type: 'object',
+            description:
+              'Objeto con los campos extraídos. Claves posibles: nom, cognoms, intencio_contacte, mascotes, quanta_gent_viura, situacio_laboral, temps_ultima_empresa, empresa_espanyola, tipus_contracte, ingressos_netos_mensuals. Valores normalizados (ej. mes_info, si, 2, empleat, menys_1600).',
+            additionalProperties: { type: 'string' },
+          },
+          suggested_reply: {
+            type: 'string',
+            description:
+              'Opcional. Mensaje breve para el usuario antes de la siguiente pregunta: respuesta a una duda sobre el piso, o confirmación de lo entendido (ej. "Tomo nota: Juan Pérez.").',
+          },
+        },
+        required: ['fields'],
+      },
+    },
+  },
+];
 
 /**
  * Detecta el idioma del mensaje usando el LLM (max_tokens=2, temperatura 0).
@@ -125,10 +184,18 @@ const QUALIFICADOR_REMINDER =
   'Do NOT ask again if they want to rent or buy if that was already said in the history. ' +
   'Start your reply directly with the next logical step (e.g. ask for property details, or call the tool).';
 
+const QUALIFICADOR_FLOW_HINT =
+  'Important flow rule: if the user wants to RENT and already provided an identifiable property reference ' +
+  '(portal, ad reference, address, price, city or another concrete clue), stop asking for personal details and call the tool. ' +
+  'When you have a reference, try to include the city/location (ciudad) if the user mentioned it or you can infer it (e.g. Barcelona, Olot). ' +
+  'The backend will continue with a guided conversational data capture. ' +
+  'If the user wants to rent but has NO specific property in mind and is only asking generally, you can call the tool with reference=null once that is clear.';
+
 function buildMessages(systemPrompt, history, contextWindow, userMessage, isQualificadorWithHistory = false) {
   const messages = [{ role: 'system', content: systemPrompt }];
   if (isQualificadorWithHistory) {
     messages.push({ role: 'system', content: QUALIFICADOR_REMINDER });
+    messages.push({ role: 'system', content: QUALIFICADOR_FLOW_HINT });
   }
   const n = Math.max(0, parseInt(contextWindow, 10) || 0);
   if (n > 0 && history.length > 0) {
@@ -172,14 +239,15 @@ export async function chat(agentName, userMessage, history = [], vars = {}) {
     isQualificadorWithHistory
   );
 
-  const useTools = agentName === 'qualificador';
+  const useTools = agentName === 'qualificador' || agentName === 'captura_alquiler_ref';
+  const tools = agentName === 'qualificador' ? [FINALIZAR_TOOL] : agentName === 'captura_alquiler_ref' ? CAPTURE_TOOLS : [];
 
   const completion = await openai.chat.completions.create({
     model: agent.model || 'gpt-4.1-mini',
     messages,
     temperature: Number(agent.temperature) || 0.5,
     max_tokens: 512,
-    ...(useTools ? { tools: [FINALIZAR_TOOL], tool_choice: 'auto' } : {}),
+    ...(useTools && tools.length ? { tools, tool_choice: 'auto' } : {}),
   });
 
   const choice = completion.choices[0];

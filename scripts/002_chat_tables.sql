@@ -7,10 +7,11 @@
 CREATE TABLE IF NOT EXISTS chat_sessions (
   session_id       VARCHAR(50) PRIMARY KEY,  -- teléfono sin '+' (ej: 34690859006)
   estado           VARCHAR(30) NOT NULL DEFAULT 'new',
-  -- new | qualifying | alquiler_ref | compra_ref
-  -- | form_sent | compra_notified | compra_no_ref | completed
+  -- new | qualifying | form_sent | compra_notified | compra_no_ref | completed
+  -- | alq_ref_ask_nom | ... | alq_ref_ask_ingressos_netos_mensuals
   intent           VARCHAR(20),              -- compra | alquiler
   reference        JSONB,                    -- datos extraídos (dirección, precio, portal...)
+  capture_data     JSONB,                    -- respuestas parciales del flujo conversacional
   lang             VARCHAR(5),               -- es | ca | en
   account_id       INTEGER,                  -- Chatwoot account.id
   conversation_id  INTEGER,                  -- Chatwoot conversation.id
@@ -89,7 +90,8 @@ Tu misión es:
 2. Una vez conozcas la intención, intenta averiguar si tiene alguna propiedad concreta en mente: una dirección, referencia de anuncio, portal donde la vio (Idealista, Fotocasa...), precio, o cualquier detalle que permita identificarla.
 3. Haz las preguntas de forma natural, sin que parezca un formulario. Una o dos preguntas por mensaje.
 4. Si el usuario dice explícitamente que NO tiene ninguna propiedad concreta en mente y solo quiere saber qué hay disponible, acepta esa respuesta sin insistir más.
-5. No menciones que vas a guardar datos ni que tienes un formulario: eso llegará en el siguiente paso.
+5. Si es ALQUILER y ya tienes una referencia identificable, deja de pedir datos personales y finaliza la cualificación: el backend continuará con una captura guiada paso a paso.
+6. No menciones que vas a guardar datos ni que tienes un formulario: eso llegará en el siguiente paso.
 Responde siempre en el mismo idioma en el que te hablen.',
   'gpt-4.1-mini',
   0.50,

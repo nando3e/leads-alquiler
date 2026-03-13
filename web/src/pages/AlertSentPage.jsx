@@ -8,8 +8,9 @@ export default function AlertSentPage() {
 
   useEffect(() => {
     api('/api/alert-sent')
-      .then((r) => r.json())
-      .then(setList)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setList(Array.isArray(data) ? data : []))
+      .catch(() => setList([]))
       .finally(() => setLoading(false));
   }, [api]);
 
@@ -32,7 +33,7 @@ export default function AlertSentPage() {
               </tr>
             </thead>
             <tbody>
-              {list.map((row) => (
+              {(Array.isArray(list) ? list : []).map((row) => (
                 <tr key={row.id} className="border-b border-neutral-100">
                   <td className="p-3 text-neutral-500">
                     {row.sent_at ? new Date(row.sent_at).toLocaleString('ca') : '-'}

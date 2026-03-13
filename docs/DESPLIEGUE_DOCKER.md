@@ -28,24 +28,38 @@ El resto de variables (tokens, API keys, SMTP...) igual que en `.env.example`.
 
 ## Primer despliegue
 
-1. Clonar el repo en el VPS (o subir a Dokploy via Git).
-2. Crear `.env` en la raíz (copia de `.env.example`) y rellenar todos los valores.
-3. Asegurarse de que la base de datos `leads_qualifier` existe en postgres:
-   ```sql
-   CREATE DATABASE leads_qualifier;
+1. **Clonar el repo** en Dokploy (Git source → rama `main`).
+
+2. **Crear `.env`** en la raíz (copia de `.env.example`) y rellenar todos los valores:
+   ```env
+   CLIENT_KEY=nombre_cliente
+   DOMAIN=leads.tudominio.com
+   FRONTEND_URL=https://leads.tudominio.com
+   DATABASE_URL=postgresql://usuario:password@nombre_cliente-postgres:5432/leads_qualifier
+   JWT_SECRET=cadena-larga-aleatoria
+   OPENAI_API_KEY=sk-...
+   # ... resto de variables
    ```
-   (se puede crear desde n8n, pgAdmin, o conectando al contenedor de postgres).
-4. Ejecutar las migraciones SQL:
+
+3. **Crear la red externa** del cliente si no existe aún (solo la primera vez):
    ```bash
-   # Conectar al contenedor de postgres del cliente y ejecutar los scripts
-   docker exec -i ${CLIENT_KEY}-postgres psql -U usuario -d leads_qualifier < scripts/001_create_tables.sql
-   docker exec -i ${CLIENT_KEY}-postgres psql -U usuario -d leads_qualifier < scripts/002_chat_tables.sql
+   docker network create ${CLIENT_KEY}_chatbot-network
    ```
-5. Arrancar:
+
+4. **Base de datos**: las migraciones se ejecutan automáticamente al arrancar la API.
+   Solo asegúrate de que la base de datos `leads_qualifier` existe en Postgres:
+   ```bash
+   docker exec -i ${CLIENT_KEY}-postgres psql -U usuario -c "CREATE DATABASE leads_qualifier;"
+   ```
+
+5. **Arrancar** (Dokploy lo hace automáticamente tras el push a Git):
    ```bash
    docker compose up -d --build
    ```
-6. Traefik detecta automáticamente el contenedor `web` y emite el certificado SSL para `DOMAIN`.
+
+6. **Traefik** detecta el contenedor `web` y emite el certificado SSL para `DOMAIN` automáticamente.
+   - HTTP (80) → redirige a HTTPS
+   - HTTPS (443) → Nginx → /api/* al contenedor api
 
 ## Múltiples clientes (mismo compose, distinto dominio)
 
