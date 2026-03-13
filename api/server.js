@@ -70,8 +70,8 @@ app.delete('/api/chat/:session_id', authMiddleware, chat.deleteSession);
 
 runMigrations()
   .then(() => {
-    app.listen(PORT, () => {
-      console.log(`API http://localhost:${PORT}`);
+    app.listen(Number(PORT), '0.0.0.0', () => {
+      console.log(`API http://0.0.0.0:${PORT}`);
     });
   })
   .catch((err) => {
