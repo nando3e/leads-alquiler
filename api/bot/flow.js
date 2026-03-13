@@ -498,6 +498,7 @@ async function runBotTurn(sessionId, aggregatedContent, { accountId, conversatio
 
 /**
  * Procesa mensajes entrantes reales desde Chatwoot.
+ * El primer argumento (phone) es el sessionId que ya resolvió el webhook; no re-derivarlo aquí.
  */
 export async function processIncoming(phone, payloads) {
   const config = await getPanelConfig();
@@ -505,7 +506,8 @@ export async function processIncoming(phone, payloads) {
 
   const first = payloads[0]?.body || payloads[0] || {};
   const accountId = first.account?.id;
-  const conversationId = first.conversation?.id;
+  const conversation = first.conversation || {};
+  const conversationId = conversation.id ?? conversation.display_id;
 
   const aggregatedContent = payloads
     .map((p) => (p.body || p).content)
@@ -514,15 +516,24 @@ export async function processIncoming(phone, payloads) {
     .trim();
   if (!aggregatedContent) return;
 
-  const sessionId = normalizePhone(
-    first.sender?.phone_number || first.conversation?.custom_attributes?.phone_number
+  const sessionId = phone && String(phone).trim() ? String(phone).trim() : normalizePhone(
+    first.sender?.phone_number || first.contact?.phone_number || conversation.custom_attributes?.phone_number
   );
   if (!sessionId) return;
 
   const result = await runBotTurn(sessionId, aggregatedContent, { accountId, conversationId });
 
   if (result.reply && accountId != null && conversationId != null) {
-    await sendChatwoot(accountId, conversationId, result.reply);
+    try {
+      await sendChatwoot(accountId, conversationId, result.reply);
+      console.log('[chatwoot] reply sent', { conversationId, replyLength: result.reply?.length });
+    } catch (e) {
+      console.error('[chatwoot] send failed', e.message);
+    }
+  } else if (!result.reply) {
+    console.log('[chatwoot] no reply from bot', { sessionId });
+  } else {
+    console.warn('[chatwoot] missing accountId or conversationId', { accountId, conversationId });
   }
 }
 

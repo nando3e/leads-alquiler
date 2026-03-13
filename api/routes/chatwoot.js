@@ -34,7 +34,8 @@ function getSessionId(body) {
 export async function webhook(req, res) {
   res.status(200).send(); // respondemos siempre para que Chatwoot no reintente
 
-  const body = req.body || {};
+  // Chatwoot puede enviar { event, payload } o el payload a nivel raíz
+  const body = req.body?.payload || req.body || {};
   const messageType = body.message_type;
   const content = body.content;
   const accountId = body.account?.id;
