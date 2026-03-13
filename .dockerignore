@@ -1,0 +1,9 @@
+# Al usar context . para construir la API, evitar copiar node_modules y basura
+api/node_modules
+web/node_modules
+node_modules
+.git
+.env
+.env.*
+*.log
+.dockerignore

@@ -7,22 +7,28 @@
 
 import pg from 'pg';
 import { readFile } from 'fs/promises';
+import { existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+// En Docker: scripts están en /app/scripts. En local: en repo/scripts (../scripts).
+const scriptsDir = existsSync(resolve(__dirname, 'scripts'))
+  ? resolve(__dirname, 'scripts')
+  : resolve(__dirname, '../scripts');
+
 const SQL_FILES = [
-  resolve(__dirname, '../scripts/001_create_tables.sql'),
-  resolve(__dirname, '../scripts/002_chat_tables.sql'),
-  resolve(__dirname, '../scripts/003_leads_empleo_ingresos.sql'),
-  resolve(__dirname, '../scripts/004_chat_capture_alquiler_ref.sql'),
-  resolve(__dirname, '../scripts/005_agent_captura_alquiler_ref.sql'),
-  resolve(__dirname, '../scripts/006_captura_agent_prompt_flow.sql'),
-  resolve(__dirname, '../scripts/007_alq_ref_questions_config.sql'),
-  resolve(__dirname, '../scripts/008_captura_agent_capturar_datos.sql'),
-  resolve(__dirname, '../scripts/009_alq_ref_interpretacion.sql'),
-  resolve(__dirname, '../scripts/010_ensure_agents.sql'),
+  resolve(scriptsDir, '001_create_tables.sql'),
+  resolve(scriptsDir, '002_chat_tables.sql'),
+  resolve(scriptsDir, '003_leads_empleo_ingresos.sql'),
+  resolve(scriptsDir, '004_chat_capture_alquiler_ref.sql'),
+  resolve(scriptsDir, '005_agent_captura_alquiler_ref.sql'),
+  resolve(scriptsDir, '006_captura_agent_prompt_flow.sql'),
+  resolve(scriptsDir, '007_alq_ref_questions_config.sql'),
+  resolve(scriptsDir, '008_captura_agent_capturar_datos.sql'),
+  resolve(scriptsDir, '009_alq_ref_interpretacion.sql'),
+  resolve(scriptsDir, '010_ensure_agents.sql'),
 ];
 
 function parseConnectionString(url) {

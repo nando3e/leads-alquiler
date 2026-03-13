@@ -1,13 +1,15 @@
+# Build context debe ser la raíz del repo (docker-compose: context: ., dockerfile: api/Dockerfile)
+# para poder copiar api/ y scripts/.
 FROM node:20-alpine
 
 WORKDIR /app
 
-COPY package.json package-lock.json ./
+COPY api/package.json api/package-lock.json ./
 RUN npm ci --omit=dev
 
-COPY . .
+COPY api/ .
+COPY scripts/ ./scripts/
 
-# Puerto interno del contenedor (el mapeo al host se hace en compose)
 ENV PORT=3001
 EXPOSE 3001
 
