@@ -1,0 +1,54 @@
+# Leads Alquiler — Docker Compose para Dokploy / VPS
+#
+# - Sin puertos expuestos: Traefik enruta por dominio (dokploy-network).
+# - La API no se expone al host. Nginx en "web" hace proxy de /api → contenedor api.
+# - Postgres no se incluye: se usa el ${CLIENT_KEY}-postgres del compose del cliente.
+#   Para ello la API se une a ${CLIENT_KEY}_chatbot-network (red interna del otro compose).
+# - DATABASE_URL usa el hostname interno: ${CLIENT_KEY}-postgres:5432
+
+services:
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: ${CLIENT_KEY}-leads-api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+    networks:
+      - leads-internal    # red privada entre api y web
+      - chatbot-network   # para llegar a postgres y chatwoot del cliente
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        # La variable que usa Vite en build time para la URL pública (si se necesita)
+        VITE_API_PUBLIC_URL: ""
+    container_name: ${CLIENT_KEY}-leads-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    networks:
+      - leads-internal   # para el proxy nginx → api
+      - dokploy-network  # para Traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.${CLIENT_KEY}-leads.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.${CLIENT_KEY}-leads.entrypoints=websecure"
+      - "traefik.http.routers.${CLIENT_KEY}-leads.tls.certresolver=letsencrypt"
+      - "traefik.http.services.${CLIENT_KEY}-leads.loadbalancer.server.port=80"
+
+networks:
+  leads-internal:
+    driver: bridge
+
+  chatbot-network:
+    external: true
+    name: ${CLIENT_KEY}_chatbot-network  # nombre real que Docker asigna al compose del cliente
+
+  dokploy-network:
+    external: true

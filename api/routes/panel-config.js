@@ -1,4 +1,5 @@
 import { query } from '../db.js';
+import { clearConfigCache } from '../bot/config.js';
 
 export async function getAll(req, res) {
   try {
@@ -17,6 +18,7 @@ export async function getAll(req, res) {
 export async function set(req, res) {
   try {
     const body = req.body || {};
+    clearConfigCache();
     for (const [key, value] of Object.entries(body)) {
       if (!key || typeof key !== 'string') continue;
       await query(

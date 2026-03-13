@@ -26,13 +26,14 @@ export async function getOne(req, res) {
 
 export async function create(req, res) {
   try {
-    const { name, active = true, criteria } = req.body || {};
+    const { name, active = true, criteria, notify_whatsapp = false, notify_email = false, admin_phone = null, admin_email = null } = req.body || {};
     if (!name || !criteria || typeof criteria !== 'object') {
       return res.status(400).json({ error: 'name and criteria required' });
     }
     const r = await query(
-      `INSERT INTO alert_requirements (name, active, criteria) VALUES ($1, $2, $3) RETURNING *`,
-      [name, !!active, JSON.stringify(criteria)]
+      `INSERT INTO alert_requirements (name, active, criteria, notify_whatsapp, notify_email, admin_phone, admin_email)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [name, !!active, JSON.stringify(criteria), !!notify_whatsapp, !!notify_email, admin_phone || null, admin_email || null]
     );
     return res.status(201).json(r.rows[0]);
   } catch (err) {
@@ -44,7 +45,7 @@ export async function create(req, res) {
 export async function update(req, res) {
   try {
     const { id } = req.params;
-    const { name, active, criteria } = req.body || {};
+    const { name, active, criteria, notify_whatsapp, notify_email, admin_phone, admin_email } = req.body || {};
     const updates = [];
     const values = [];
     let idx = 1;
@@ -59,6 +60,22 @@ export async function update(req, res) {
     if (criteria !== undefined) {
       updates.push(`criteria = $${idx++}`);
       values.push(JSON.stringify(criteria));
+    }
+    if (notify_whatsapp !== undefined) {
+      updates.push(`notify_whatsapp = $${idx++}`);
+      values.push(!!notify_whatsapp);
+    }
+    if (notify_email !== undefined) {
+      updates.push(`notify_email = $${idx++}`);
+      values.push(!!notify_email);
+    }
+    if (admin_phone !== undefined) {
+      updates.push(`admin_phone = $${idx++}`);
+      values.push(admin_phone || null);
+    }
+    if (admin_email !== undefined) {
+      updates.push(`admin_email = $${idx++}`);
+      values.push(admin_email || null);
     }
     if (updates.length === 0) return res.status(400).json({ error: 'No fields to update' });
     updates.push(`updated_at = now()`);

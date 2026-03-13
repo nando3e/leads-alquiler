@@ -90,7 +90,7 @@ export function leadMatchesCriteria(lead, criteria) {
 
 export async function getActiveAlertRequirements() {
   const res = await query(
-    'SELECT id, name, criteria FROM alert_requirements WHERE active = true'
+    'SELECT id, name, criteria, notify_whatsapp, notify_email, admin_phone, admin_email FROM alert_requirements WHERE active = true'
   );
   return res.rows;
 }

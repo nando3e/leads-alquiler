@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { runMigrations } from './migrate.js';
 import express from 'express';
 import cors from 'cors';
 import { query } from './db.js';
@@ -9,6 +10,9 @@ import * as alertRequirements from './routes/alert-requirements.js';
 import * as panelConfig from './routes/panel-config.js';
 import * as alertSent from './routes/alert-sent.js';
 import * as dashboard from './routes/dashboard.js';
+import * as chatwoot from './routes/chatwoot.js';
+import * as agentConfigs from './routes/agent-configs.js';
+import * as chat from './routes/chat.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -21,6 +25,8 @@ app.get('/api/health', (_, res) => res.json({ ok: true }));
 app.post('/api/auth/login', auth.postLogin);
 
 app.post('/api/leads', leads.postLead);
+
+app.post('/api/chatwoot/webhook', chatwoot.webhook);
 
 app.get('/api/form-config', async (_, res) => {
   try {
@@ -54,6 +60,21 @@ app.delete('/api/alert-requirements/:id', authMiddleware, alertRequirements.remo
 
 app.get('/api/alert-sent', authMiddleware, alertSent.list);
 
-app.listen(PORT, () => {
-  console.log(`API http://localhost:${PORT}`);
-});
+app.get('/api/agent-configs', authMiddleware, agentConfigs.list);
+app.get('/api/agent-configs/:id', authMiddleware, agentConfigs.getOne);
+app.put('/api/agent-configs/:id', authMiddleware, agentConfigs.update);
+
+app.post('/api/chat/message', authMiddleware, chat.postMessage);
+app.get('/api/chat/:session_id', authMiddleware, chat.getSessionState);
+app.delete('/api/chat/:session_id', authMiddleware, chat.deleteSession);
+
+runMigrations()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`API http://localhost:${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error('[migrate] Fatal error, server not started:', err);
+    process.exit(1);
+  });

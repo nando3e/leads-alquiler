@@ -7,6 +7,10 @@ import {
   updateLeadAlertSentAt,
 } from '../alerts.js';
 import { notifyN8nAlert, notifyFormularioEnviado } from '../webhook.js';
+import { getSession } from '../bot/session.js';
+import { sendMessage as sendChatwootMessage } from '../bot/chatwoot.js';
+import { getPanelConfig } from '../bot/config.js';
+import { notifyAdminWhatsApp, notifyAdminEmail } from '../notify.js';
 
 const LEAD_COLUMNS = [
   'nom', 'cognoms', 'dni_nie', 'mobil', 'fix',
@@ -16,6 +20,20 @@ const LEAD_COLUMNS = [
   'mascotes', 'quanta_gent_viura', 'menors', 'observacions',
   'lang', 'whatsapp_number',
 ];
+
+// Valores por defecto para columnas NOT NULL cuando el form envía vacío (evita 500)
+const NOT_NULL_DEFAULTS = {
+  nom: '',
+  cognoms: '',
+  dni_nie: '',
+  mobil: '',
+  tipus_immoble: 'no_importa',
+  preu_max_mensual: 0,
+  moblat: 'no_importa',
+  zona: 'Qualsevol',
+  mascotes: 'no',
+  lang: 'ca',
+};
 
 function normalizeValue(col, v) {
   if (v === '' || v === undefined) return null;
@@ -30,7 +48,9 @@ function buildInsertLead(body) {
   const values = [];
   for (const col of LEAD_COLUMNS) {
     keys.push(col);
-    values.push(normalizeValue(col, body[col]));
+    let v = normalizeValue(col, body[col]);
+    if (v === null && col in NOT_NULL_DEFAULTS) v = NOT_NULL_DEFAULTS[col];
+    values.push(v);
   }
   const placeholders = values.map((_, j) => `$${j + 1}`).join(', ');
   return {
@@ -73,11 +93,14 @@ export async function postLead(req, res) {
       const { text, values } = buildUpdateLead({ ...body, id: existingId });
       const update = await query(text, values);
       const lead = update.rows[0];
+      const config = await getPanelConfig();
+      const { getLocalizedMsg } = await import('../bot/config.js');
+      const message = await getLocalizedMsg(config, 'msg_form_updated', lang);
       return res.status(200).json({
         ok: true,
         id: lead.id,
         updated: true,
-        message: 'Dades actualitzades. Gràcies.',
+        message: message || 'Dades actualitzades. Gràcies.',
       });
     }
 
@@ -89,6 +112,22 @@ export async function postLead(req, res) {
 
     await notifyFormularioEnviado(leadPlain);
 
+    const mobilNorm = (body.mobil || '').replace(/\D/g, '');
+    const sessionId = mobilNorm.length === 9 && mobilNorm.startsWith('6') ? '34' + mobilNorm : mobilNorm;
+    const chatSession = sessionId ? await getSession(sessionId) || (mobilNorm !== sessionId ? await getSession(mobilNorm) : null) : null;
+    if (chatSession?.account_id != null && chatSession?.conversation_id != null) {
+      try {
+        const config = await getPanelConfig();
+        const { getLocalizedMsg } = await import('../bot/config.js');
+        const sessionLang = chatSession.lang || 'es';
+        const msg = await getLocalizedMsg(config, 'msg_post_form', sessionLang);
+        await sendChatwootMessage(chatSession.account_id, chatSession.conversation_id, msg);
+        await query("UPDATE chat_sessions SET estado = 'completed', updated_at = now() WHERE session_id = $1", [chatSession.session_id]);
+      } catch (e) {
+        console.error('send post-form message to Chatwoot', e);
+      }
+    }
+
     const requirements = await getActiveAlertRequirements();
     for (const req of requirements) {
       const criteria = req.criteria || {};
@@ -99,6 +138,12 @@ export async function postLead(req, res) {
       await recordAlertSent(leadId, req.id, leadPlain);
       await updateLeadAlertSentAt(leadId);
       await notifyN8nAlert(leadPlain, req.name);
+      if (req.notify_whatsapp && req.admin_phone) {
+        await notifyAdminWhatsApp(req.admin_phone, leadPlain, req.name);
+      }
+      if (req.notify_email && req.admin_email) {
+        await notifyAdminEmail(req.admin_email, leadPlain, req.name);
+      }
     }
 
     const whatsappNumber = body.whatsapp_number || null;
@@ -109,15 +154,22 @@ export async function postLead(req, res) {
       );
     }
 
+    const config = await getPanelConfig();
+    const { getLocalizedMsg } = await import('../bot/config.js');
+    const message = await getLocalizedMsg(config, 'msg_form_success', lang);
     return res.status(201).json({
       ok: true,
       id: lead.id,
       updated: false,
-      message: 'Gracias. Hemos recibido tus datos.',
+      message: message || 'Gracias. Hemos recibido tus datos.',
     });
   } catch (err) {
     console.error('postLead', err);
-    return res.status(500).json({ error: 'server_error' });
+    const isDev = process.env.NODE_ENV !== 'production';
+    return res.status(500).json({
+      error: 'server_error',
+      ...(isDev && { message: err.message, stack: err.stack }),
+    });
   }
 }
 

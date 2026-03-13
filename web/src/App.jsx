@@ -8,6 +8,8 @@ import LeadsPage from './pages/LeadsPage';
 import AlertRulesPage from './pages/AlertRulesPage';
 import ConfigPage from './pages/ConfigPage';
 import AlertSentPage from './pages/AlertSentPage';
+import AgentsPage from './pages/AgentsPage';
+import ChatTestPage from './pages/ChatTestPage';
 
 function ProtectedRoute({ children }) {
   const { token } = useAuth();
@@ -33,6 +35,8 @@ export default function App() {
         <Route path="alert-rules" element={<AlertRulesPage />} />
         <Route path="alert-sent" element={<AlertSentPage />} />
         <Route path="config" element={<ConfigPage />} />
+        <Route path="agents" element={<AgentsPage />} />
+        <Route path="chat" element={<ChatTestPage />} />
       </Route>
       <Route path="/" element={<Navigate to="/form" replace />} />
       <Route path="*" element={<Navigate to="/form" replace />} />

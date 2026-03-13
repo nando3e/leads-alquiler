@@ -7,6 +7,8 @@ const nav = [
   { to: '/panel/alert-rules', label: 'Regles d\'alerta', end: false },
   { to: '/panel/alert-sent', label: 'Alertes enviades', end: false },
   { to: '/panel/config', label: 'Configuració', end: false },
+  { to: '/panel/agents', label: 'Agents IA', end: false },
+  { to: '/panel/chat', label: 'Provar bot', end: false },
 ];
 
 export default function PanelLayout() {

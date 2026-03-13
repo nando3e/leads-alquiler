@@ -15,6 +15,10 @@ export default function AlertRulesPage() {
     active: true,
     enabled: defaultEnabled(),
     values: defaultValues(),
+    notify_whatsapp: false,
+    notify_email: false,
+    admin_phone: '',
+    admin_email: '',
   });
 
   function load() {
@@ -50,12 +54,20 @@ export default function AlertRulesPage() {
     api(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: form.name, active: form.active, criteria }),
+      body: JSON.stringify({
+        name: form.name,
+        active: form.active,
+        criteria,
+        notify_whatsapp: form.notify_whatsapp,
+        notify_email: form.notify_email,
+        admin_phone: form.admin_phone,
+        admin_email: form.admin_email,
+      }),
     })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then(() => {
         setEditing(null);
-        setForm({ name: '', active: true, enabled: defaultEnabled(), values: defaultValues() });
+        setForm({ name: '', active: true, enabled: defaultEnabled(), values: defaultValues(), notify_whatsapp: false, notify_email: false, admin_phone: '', admin_email: '' });
         load();
       })
       .catch(() => {});
@@ -69,6 +81,10 @@ export default function AlertRulesPage() {
       active: rule.active,
       enabled,
       values,
+      notify_whatsapp: !!rule.notify_whatsapp,
+      notify_email: !!rule.notify_email,
+      admin_phone: rule.admin_phone || '',
+      admin_email: rule.admin_email || '',
     });
   }
 
@@ -166,6 +182,47 @@ export default function AlertRulesPage() {
               onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
             />
             <label htmlFor="active" className="text-sm">Activa</label>
+          </div>
+
+          {/* ── Notificacions al administrador ── */}
+          <div className="border-t border-neutral-200 pt-4">
+            <p className="text-sm font-medium text-neutral-700 mb-3">Notificar a l'administrador quan es compleixi la regla</p>
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.notify_whatsapp}
+                  onChange={(e) => setForm((f) => ({ ...f, notify_whatsapp: e.target.checked }))}
+                />
+                Notificar per WhatsApp
+              </label>
+              {form.notify_whatsapp && (
+                <input
+                  type="tel"
+                  value={form.admin_phone}
+                  onChange={(e) => setForm((f) => ({ ...f, admin_phone: e.target.value }))}
+                  placeholder="34600000000 (sense +)"
+                  className="w-full rounded-lg border border-neutral-300 px-3 py-1.5 text-sm"
+                />
+              )}
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.notify_email}
+                  onChange={(e) => setForm((f) => ({ ...f, notify_email: e.target.checked }))}
+                />
+                Notificar per correu electrònic
+              </label>
+              {form.notify_email && (
+                <input
+                  type="email"
+                  value={form.admin_email}
+                  onChange={(e) => setForm((f) => ({ ...f, admin_email: e.target.value }))}
+                  placeholder="admin@exemple.com"
+                  className="w-full rounded-lg border border-neutral-300 px-3 py-1.5 text-sm"
+                />
+              )}
+            </div>
           </div>
 
           <div className="border-t border-neutral-200 pt-4">
