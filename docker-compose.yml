@@ -32,7 +32,9 @@ services:
       NODE_ENV: production
       PORT: 3001
     networks:
-      - leads-internal
+      leads-internal:
+        aliases:
+          - leads-api
 
   web:
     build:
