@@ -31,7 +31,10 @@ export async function sendMessage(accountId, conversationId, content) {
 }
 
 export async function setContactBot(accountId, contactId, bot = true) {
-  if (!BASE || !TOKEN) return;
+  if (!BASE || !TOKEN) {
+    console.warn('[chatwoot] setContactBot skipped: CHATWOOT_URL or CHATWOOT_TOKEN missing');
+    return;
+  }
   await request(`/api/v1/accounts/${accountId}/contacts/${contactId}`, 'PATCH', {
     custom_attributes: { bot },
   });
