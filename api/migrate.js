@@ -31,6 +31,7 @@ const SQL_FILES = [
   resolve(scriptsDir, '010_ensure_agents.sql'),
   resolve(scriptsDir, '012_properties_table.sql'),
   resolve(scriptsDir, '013_leads_reference_and_mobil_unique.sql'),
+  resolve(scriptsDir, '014_properties_mascotas.sql'),
 ];
 
 function parseConnectionString(url) {

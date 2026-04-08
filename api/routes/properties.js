@@ -28,6 +28,7 @@ const ALLOWED = [
   'garaje',
   'precio',
   'descripcion',
+  'mascotas',
   'activo',
 ];
 
@@ -60,6 +61,10 @@ const HEADER_ALIASES = {
   descripcion: 'descripcion',
   descripción: 'descripcion',
   descripcio: 'descripcion',
+  mascotas: 'mascotas',
+  mascotes: 'mascotas',
+  pets: 'mascotas',
+  admite_mascotas: 'mascotas',
   activo: 'activo',
   active: 'activo',
 };
@@ -76,6 +81,14 @@ function parseBool(v) {
   if (['0', 'false', 'no', 'f', 'n'].includes(s)) return false;
   if (['1', 'true', 'yes', 's', 'sí', 'si'].includes(s)) return true;
   return Boolean(v);
+}
+
+/** Booleano por defecto false (cel·la buida = no). */
+function parseMascotasField(v) {
+  if (v === true || v === 1) return true;
+  if (v === false || v === 0) return false;
+  if (v == null || v === '') return false;
+  return parseBool(v);
 }
 
 function parseRow(raw) {
@@ -99,6 +112,7 @@ function parseRow(raw) {
     garaje: row.garaje != null ? String(row.garaje) : null,
     precio: row.precio != null && row.precio !== '' ? Number(String(row.precio).replace(',', '.')) : null,
     descripcion: row.descripcion != null ? String(row.descripcion) : null,
+    mascotas: parseMascotasField(row.mascotas),
     activo: parseBool(row.activo),
   };
 }
@@ -209,8 +223,8 @@ export async function create(req, res) {
     const r = await query(
       `INSERT INTO properties (
         ref_code, direccion, zona, tipo_operacion, tipo_vivienda, planta, ascensor,
-        habitaciones, banos, garaje, precio, descripcion, activo
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+        habitaciones, banos, garaje, precio, descripcion, mascotas, activo
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
       RETURNING *`,
       [
         String(b.ref_code).trim(),
@@ -225,6 +239,7 @@ export async function create(req, res) {
         b.garaje ?? null,
         b.precio != null ? Number(b.precio) : null,
         b.descripcion ?? null,
+        b.mascotas === true,
         b.activo !== false,
       ]
     );
@@ -258,6 +273,7 @@ export async function update(req, res) {
       garaje: (v) => v ?? null,
       precio: (v) => (v != null ? Number(v) : null),
       descripcion: (v) => v ?? null,
+      mascotas: (v) => (v === undefined ? undefined : Boolean(v)),
       activo: (v) => (v === undefined ? undefined : Boolean(v)),
     };
     for (const [key, fn] of Object.entries(map)) {
@@ -331,8 +347,8 @@ export async function importFile(req, res) {
           await query(
             `UPDATE properties SET
               direccion = $1, zona = $2, tipo_operacion = $3, tipo_vivienda = $4, planta = $5, ascensor = $6,
-              habitaciones = $7, banos = $8, garaje = $9, precio = $10, descripcion = $11, activo = $12, updated_at = now()
-              WHERE ref_code = $13`,
+              habitaciones = $7, banos = $8, garaje = $9, precio = $10, descripcion = $11, mascotas = $12, activo = $13, updated_at = now()
+              WHERE ref_code = $14`,
             [
               parsed.direccion,
               parsed.zona,
@@ -345,6 +361,7 @@ export async function importFile(req, res) {
               parsed.garaje,
               parsed.precio,
               parsed.descripcion,
+              parsed.mascotas,
               parsed.activo,
               parsed.ref_code,
             ]
@@ -354,8 +371,8 @@ export async function importFile(req, res) {
           await query(
             `INSERT INTO properties (
               ref_code, direccion, zona, tipo_operacion, tipo_vivienda, planta, ascensor,
-              habitaciones, banos, garaje, precio, descripcion, activo
-            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+              habitaciones, banos, garaje, precio, descripcion, mascotas, activo
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
             [
               parsed.ref_code,
               parsed.direccion,
@@ -369,6 +386,7 @@ export async function importFile(req, res) {
               parsed.garaje,
               parsed.precio,
               parsed.descripcion,
+              parsed.mascotas,
               parsed.activo,
             ]
           );

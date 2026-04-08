@@ -14,6 +14,7 @@ const emptyForm = {
   garaje: '',
   precio: '',
   descripcion: '',
+  mascotas: false,
   activo: true,
 };
 
@@ -113,6 +114,7 @@ export default function PropertiesPage() {
       garaje: row.garaje || '',
       precio: row.precio ?? '',
       descripcion: row.descripcion || '',
+      mascotas: row.mascotas === true,
       activo: row.activo !== false,
       _id: row.id,
     });
@@ -135,6 +137,7 @@ export default function PropertiesPage() {
         garaje: form.garaje || null,
         precio: form.precio === '' ? null : Number(form.precio),
         descripcion: form.descripcion || null,
+        mascotas: form.mascotas,
         activo: form.activo,
       };
       if (!body.ref_code) {
@@ -345,6 +348,12 @@ export default function PropertiesPage() {
                   <td className="px-3 py-2">Text</td>
                 </tr>
                 <tr>
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-stone-800">mascotas</td>
+                  <td className="px-3 py-2">
+                    Cert/fals, 1/0, si/no. Per defecte <strong>no</strong> si la cel·la és buida
+                  </td>
+                </tr>
+                <tr>
                   <td className="whitespace-nowrap px-3 py-2 font-mono text-stone-800">activo</td>
                   <td className="px-3 py-2">
                     <code className="text-xs">1</code>/<code className="text-xs">0</code>,{' '}
@@ -357,9 +366,9 @@ export default function PropertiesPage() {
           </div>
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-stone-500">Exemple de dues files (CSV)</p>
           <pre className="overflow-x-auto rounded-lg border border-stone-200 bg-white p-3 font-mono text-[11px] leading-relaxed text-stone-800">
-            {`ref_code,direccion,zona,tipo_operacion,tipo_vivienda,habitaciones,precio,activo
-REF-001,"Calle Mayor 5",Olot,alquiler,Piso,3,750,si
-REF-002,Calle Nou 2,Banyoles,compra,Casa,4,195000,1`}
+            {`ref_code,direccion,zona,tipo_operacion,tipo_vivienda,habitaciones,precio,mascotas,activo
+REF-001,"Calle Mayor 5",Olot,alquiler,Piso,3,750,si,si
+REF-002,Calle Nou 2,Banyoles,compra,Casa,4,195000,no,1`}
           </pre>
           <p className="mt-3 text-xs text-stone-600">
             Si un <code className="rounded bg-stone-100 px-1">ref_code</code> ja existeix, la fila{' '}
@@ -475,6 +484,7 @@ REF-002,Calle Nou 2,Banyoles,compra,Casa,4,195000,1`}
                     <th className="px-3 py-3 font-medium text-stone-700">Operació</th>
                     <th className="px-3 py-3 font-medium text-stone-700">Preu</th>
                     <th className="px-3 py-3 font-medium text-stone-700">Hab.</th>
+                    <th className="px-3 py-3 font-medium text-stone-700">Masc.</th>
                     <th className="px-3 py-3 font-medium text-stone-700">Actiu</th>
                     <th className="w-40 px-3 py-3 font-medium text-stone-700">Accions</th>
                   </tr>
@@ -487,6 +497,7 @@ REF-002,Calle Nou 2,Banyoles,compra,Casa,4,195000,1`}
                       <td className="px-3 py-2.5 text-stone-800">{row.tipo_operacion}</td>
                       <td className="px-3 py-2.5 text-stone-800">{row.precio != null ? `${row.precio} €` : '—'}</td>
                       <td className="px-3 py-2.5 text-stone-800">{row.habitaciones ?? '—'}</td>
+                      <td className="px-3 py-2.5 text-stone-800">{row.mascotas ? 'Sí' : 'No'}</td>
                       <td className="px-3 py-2.5 text-stone-800">{row.activo ? 'Sí' : 'No'}</td>
                       <td className="px-3 py-2.5">
                         <button
@@ -623,6 +634,14 @@ REF-002,Calle Nou 2,Banyoles,compra,Casa,4,195000,1`}
                   value={form.descripcion}
                   onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))}
                 />
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={form.mascotas}
+                  onChange={(e) => setForm((f) => ({ ...f, mascotas: e.target.checked }))}
+                />
+                <span>Admet mascotes</span>
               </label>
               <label className="flex items-center gap-2">
                 <input

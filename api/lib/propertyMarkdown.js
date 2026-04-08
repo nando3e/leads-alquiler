@@ -32,6 +32,7 @@ export function propertyToMarkdown(row) {
     `- Habitaciones: ${row.habitaciones != null ? row.habitaciones : '—'}`,
     `- Baños: ${row.banos != null ? row.banos : '—'}`,
     `- Garaje: ${displaySiNo(row.garaje)}`,
+    `- Mascotas: ${row.mascotas === true ? 'Sí' : 'No'}`,
     `- Precio: ${precio}`,
     `- Descripción: ${desc}`,
   ];
