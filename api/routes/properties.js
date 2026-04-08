@@ -1,6 +1,19 @@
 import { parse } from 'csv-parse/sync';
 import XLSX from 'xlsx';
 import { query } from '../db.js';
+import { clearConfigCache } from '../panelConfig.js';
+import { runSyncSafe, validateRagEnv } from '../lib/qdrantSync.js';
+
+async function setPanelKeys(pairs) {
+  clearConfigCache();
+  for (const [key, value] of Object.entries(pairs)) {
+    await query(
+      `INSERT INTO panel_config (key, value) VALUES ($1, $2)
+       ON CONFLICT (key) DO UPDATE SET value = $2`,
+      [key, value == null ? '' : String(value)]
+    );
+  }
+}
 
 const ALLOWED = [
   'ref_code',
@@ -370,5 +383,98 @@ export async function importFile(req, res) {
   } catch (err) {
     console.error('properties.importFile', err);
     return res.status(500).json({ error: 'server_error', message: err.message });
+  }
+}
+
+export async function syncRag(req, res) {
+  try {
+    const cfgErr = validateRagEnv();
+    if (cfgErr) {
+      return res.status(400).json({ error: 'config', message: cfgErr });
+    }
+
+    const dataRes = await query(
+      `SELECT * FROM properties WHERE activo = true ORDER BY ref_code`
+    );
+    const rows = dataRes.rows;
+    const startedAt = new Date().toISOString();
+
+    await setPanelKeys({
+      qdrant_sync_status: 'syncing',
+      qdrant_sync_started_at: startedAt,
+    });
+
+    runSyncSafe(rows);
+
+    return res.json({ ok: true, status: 'syncing', count: rows.length });
+  } catch (err) {
+    console.error('properties.syncRag', err);
+    return res.status(500).json({ error: 'server_error' });
+  }
+}
+
+export async function syncStatus(req, res) {
+  try {
+    const cfgRes = await query(
+      `SELECT key, value FROM panel_config WHERE key IN (
+        'qdrant_last_sync_at', 'qdrant_sync_status', 'qdrant_sync_started_at'
+      )`
+    );
+    const cfg = {};
+    for (const row of cfgRes.rows) cfg[row.key] = row.value ?? '';
+
+    const maxRes = await query(
+      `SELECT MAX(updated_at) AS last_property_change FROM properties`
+    );
+    const lastChangeRaw = maxRes.rows[0]?.last_property_change;
+    const lastChange = lastChangeRaw ? new Date(lastChangeRaw).toISOString() : null;
+
+    const syncStatusKey = (cfg.qdrant_sync_status || '').trim();
+    if (syncStatusKey === 'syncing') {
+      return res.json({
+        status: 'syncing',
+        last_sync: cfg.qdrant_last_sync_at || null,
+        last_change: lastChange,
+      });
+    }
+
+    if (syncStatusKey === 'error') {
+      return res.json({
+        status: 'pending',
+        last_sync: cfg.qdrant_last_sync_at || null,
+        last_change: lastChange,
+      });
+    }
+
+    const lastSyncStr = (cfg.qdrant_last_sync_at || '').trim();
+    const lastSync = lastSyncStr ? new Date(lastSyncStr) : null;
+
+    if (!lastSync || Number.isNaN(lastSync.getTime())) {
+      return res.json({
+        status: 'pending',
+        last_sync: null,
+        last_change: lastChange,
+      });
+    }
+
+    if (lastChangeRaw) {
+      const lastChangeDt = new Date(lastChangeRaw);
+      if (lastChangeDt > lastSync) {
+        return res.json({
+          status: 'pending',
+          last_sync: lastSync.toISOString(),
+          last_change: lastChange,
+        });
+      }
+    }
+
+    return res.json({
+      status: 'synced',
+      last_sync: lastSync.toISOString(),
+      last_change: lastChange,
+    });
+  } catch (err) {
+    console.error('properties.syncStatus', err);
+    return res.status(500).json({ error: 'server_error' });
   }
 }

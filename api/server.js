@@ -62,11 +62,13 @@ app.delete('/api/alert-requirements/:id', authMiddleware, alertRequirements.remo
 app.get('/api/alert-sent', authMiddleware, alertSent.list);
 
 app.get('/api/properties', authMiddleware, properties.list);
+app.get('/api/properties/sync-status', authMiddleware, properties.syncStatus);
 app.get('/api/properties/:id', authMiddleware, properties.getOne);
 app.post('/api/properties', authMiddleware, properties.create);
 app.put('/api/properties/:id', authMiddleware, properties.update);
 app.delete('/api/properties/:id', authMiddleware, properties.remove);
 app.post('/api/properties/import', authMiddleware, upload.single('file'), properties.importFile);
+app.post('/api/properties/sync-rag', authMiddleware, properties.syncRag);
 
 runMigrations()
   .then(() => {

@@ -33,6 +33,28 @@ export default function PropertiesPage() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [importMsg, setImportMsg] = useState(null);
+  const [ragStatus, setRagStatus] = useState(null);
+  const [ragSyncLoading, setRagSyncLoading] = useState(false);
+
+  const loadRagStatus = useCallback(() => {
+    api('/api/properties/sync-status')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d && d.status) setRagStatus(d);
+        else setRagStatus({ status: 'pending', last_sync: null, last_change: null });
+      })
+      .catch(() => setRagStatus({ status: 'pending', last_sync: null, last_change: null }));
+  }, [api]);
+
+  useEffect(() => {
+    loadRagStatus();
+  }, [loadRagStatus]);
+
+  useEffect(() => {
+    if (ragStatus?.status !== 'syncing') return undefined;
+    const id = setInterval(() => loadRagStatus(), 4000);
+    return () => clearInterval(id);
+  }, [ragStatus?.status, loadRagStatus]);
 
   const load = useCallback(() => {
     let cancelled = false;
@@ -135,6 +157,7 @@ export default function PropertiesPage() {
       }
       setModal(null);
       load();
+      loadRagStatus();
     } finally {
       setSaving(false);
     }
@@ -148,6 +171,7 @@ export default function PropertiesPage() {
       return;
     }
     load();
+    loadRagStatus();
   }
 
   async function handleImport(e) {
@@ -174,10 +198,51 @@ export default function PropertiesPage() {
         `Importat: ${j.inserted} nous, ${j.updated} actualitzats${j.skipped ? `, ${j.skipped} amb avís` : ''}.`
       );
       load();
+      loadRagStatus();
     } catch (err) {
       setImportMsg(String(err.message || err));
     }
   }
+
+  async function handleSyncRag() {
+    if (ragStatus?.status === 'syncing' || ragSyncLoading) return;
+    setRagSyncLoading(true);
+    setRagStatus((s) => (s ? { ...s, status: 'syncing' } : { status: 'syncing', last_sync: null, last_change: null }));
+    try {
+      const r = await api('/api/properties/sync-rag', { method: 'POST' });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        alert(j.message || j.error || 'Error en sincronitzar el RAG');
+        loadRagStatus();
+        return;
+      }
+      loadRagStatus();
+    } catch (e) {
+      alert(String(e.message || e));
+      loadRagStatus();
+    } finally {
+      setRagSyncLoading(false);
+    }
+  }
+
+  const ragChip =
+    ragStatus?.status === 'syncing' ? (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-medium text-sky-800">
+        <span
+          className="inline-block h-2 w-2 animate-pulse rounded-full bg-sky-500"
+          aria-hidden
+        />
+        Sincronitzant...
+      </span>
+    ) : ragStatus?.status === 'synced' ? (
+      <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800">
+        RAG actualitzat
+      </span>
+    ) : (
+      <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-900">
+        RAG pendent d&apos;actualitzar
+      </span>
+    );
 
   return (
     <div>
@@ -186,16 +251,124 @@ export default function PropertiesPage() {
           <h1 className="iv-page-title">Propietats</h1>
           <p className="iv-page-sub mb-0">Catàleg i filtres de propietats.</p>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-wrap">
+          {ragChip}
+          <button
+            type="button"
+            onClick={handleSyncRag}
+            disabled={ragStatus?.status === 'syncing' || ragSyncLoading}
+            className="iv-btn-secondary w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {ragSyncLoading ? 'Enviant...' : 'Actualitzar RAG'}
+          </button>
           <button type="button" onClick={openNew} className="iv-btn w-full sm:w-auto">
             Nova propietat
           </button>
-          <label className="iv-btn-secondary w-full cursor-pointer text-center sm:w-auto">
-            Importar CSV / Excel
-            <input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleImport} />
-          </label>
+          <div className="w-full sm:w-auto">
+            <label className="iv-btn-secondary block w-full cursor-pointer text-center">
+              Importar CSV / Excel
+              <input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleImport} />
+            </label>
+          </div>
         </div>
       </div>
+
+      <details className="iv-card mb-6 overflow-hidden p-0 ring-1 ring-stone-200/80">
+        <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-stone-800 hover:bg-stone-50/80 [&::-webkit-details-marker]:hidden">
+          <span className="inline-flex items-center gap-2">
+            <span className="text-stone-500" aria-hidden>
+              ▾
+            </span>
+            Format del CSV / Excel (cabeceres i exemple)
+          </span>
+        </summary>
+        <div className="border-t border-stone-100 px-4 py-4 text-sm text-stone-700">
+          <p className="mb-3 leading-relaxed">
+            La <strong>primera fila</strong> ha de ser la capçalera amb els noms de columna. El fitxer pot ser{' '}
+            <code className="rounded bg-stone-100 px-1 py-0.5 text-xs">.csv</code> (UTF-8 recomanat) o la primera fulla
+            d&apos;un <code className="rounded bg-stone-100 px-1 py-0.5 text-xs">.xlsx</code> /{' '}
+            <code className="rounded bg-stone-100 px-1 py-0.5 text-xs">.xls</code>.
+          </p>
+          <p className="mb-3">
+            <strong className="text-stone-900">Obligatori:</strong>{' '}
+            <code className="rounded bg-stone-100 px-1.5 py-0.5 text-xs">ref_code</code> (referència única). També es
+            accepten capçaleres com <code className="rounded bg-stone-100 px-1 py-0.5 text-xs">ref</code>,{' '}
+            <code className="rounded bg-stone-100 px-1 py-0.5 text-xs">referencia</code>,{' '}
+            <code className="rounded bg-stone-100 px-1 py-0.5 text-xs">codigo</code>…
+          </p>
+          <div className="mb-3 overflow-x-auto rounded-lg border border-stone-200 bg-stone-50/90">
+            <table className="min-w-full text-left text-xs">
+              <thead className="border-b border-stone-200 bg-stone-100/80 text-stone-600">
+                <tr>
+                  <th className="whitespace-nowrap px-3 py-2 font-semibold">Camp (recomanat)</th>
+                  <th className="px-3 py-2 font-semibold">Contingut</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-100">
+                <tr>
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-stone-800">ref_code</td>
+                  <td className="px-3 py-2">Identificador únic (ex. REF-001)</td>
+                </tr>
+                <tr>
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-stone-800">direccion</td>
+                  <td className="px-3 py-2">Adreça</td>
+                </tr>
+                <tr>
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-stone-800">zona</td>
+                  <td className="px-3 py-2">Zona / ciutat</td>
+                </tr>
+                <tr>
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-stone-800">tipo_operacion</td>
+                  <td className="px-3 py-2">
+                    <code className="text-xs">alquiler</code> o <code className="text-xs">compra</code> (o{' '}
+                    <code className="text-xs">venta</code> → es guarda com compra)
+                  </td>
+                </tr>
+                <tr>
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-stone-800">tipo_vivienda</td>
+                  <td className="px-3 py-2">Ex. Pis, Casa</td>
+                </tr>
+                <tr>
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-stone-800">planta, ascensor, garaje</td>
+                  <td className="px-3 py-2">Text lliure (sí/no també val per a booleans)</td>
+                </tr>
+                <tr>
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-stone-800">habitaciones, banos</td>
+                  <td className="px-3 py-2">Números enters</td>
+                </tr>
+                <tr>
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-stone-800">precio</td>
+                  <td className="px-3 py-2">Número (coma o punt decimal)</td>
+                </tr>
+                <tr>
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-stone-800">descripcion</td>
+                  <td className="px-3 py-2">Text</td>
+                </tr>
+                <tr>
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-stone-800">activo</td>
+                  <td className="px-3 py-2">
+                    <code className="text-xs">1</code>/<code className="text-xs">0</code>,{' '}
+                    <code className="text-xs">si</code>/<code className="text-xs">no</code>, cert/fals. Per defecte
+                    actiu si buit
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-stone-500">Exemple de dues files (CSV)</p>
+          <pre className="overflow-x-auto rounded-lg border border-stone-200 bg-white p-3 font-mono text-[11px] leading-relaxed text-stone-800">
+            {`ref_code,direccion,zona,tipo_operacion,tipo_vivienda,habitaciones,precio,activo
+REF-001,"Calle Mayor 5",Olot,alquiler,Piso,3,750,si
+REF-002,Calle Nou 2,Banyoles,compra,Casa,4,195000,1`}
+          </pre>
+          <p className="mt-3 text-xs text-stone-600">
+            Si un <code className="rounded bg-stone-100 px-1">ref_code</code> ja existeix, la fila{' '}
+            <strong>actualitza</strong> aquella propietat; si és nou, s&apos;<strong>afegeix</strong>. Les propietats que
+            no surtin al fitxer no s&apos;esborren.
+          </p>
+        </div>
+      </details>
+
       {importMsg && (
         <p className="mb-4 rounded-xl border border-teal-100 bg-teal-50/80 px-3 py-2 text-sm text-teal-900">
           {importMsg}
