@@ -27,47 +27,62 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-neutral-50 px-4">
-      <div className="w-full max-w-sm">
-        <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 p-8">
-          <h1 className="text-xl font-semibold text-neutral-900 mb-6 text-center">
-            Accés al panell
-          </h1>
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-stone-100 via-teal-50/40 to-cyan-50/30 px-4 py-10">
+      <div
+        className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-teal-400/15 blur-3xl"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute -bottom-32 -left-16 h-80 w-80 rounded-full bg-cyan-400/10 blur-3xl"
+        aria-hidden
+      />
+
+      <div className="relative mx-auto flex min-h-[calc(100vh-5rem)] max-w-sm flex-col justify-center">
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-600 shadow-lg shadow-teal-600/25 ring-1 ring-teal-600/20">
+            <svg className="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+              />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight text-stone-900">Inmobiliaria Virtual</h1>
+          <p className="mt-1 text-sm text-stone-500">Accés al teu espai de gestió</p>
+        </div>
+
+        <div className="iv-card border-stone-200/80 p-8 shadow-xl shadow-stone-200/50 ring-1 ring-stone-200/60">
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <p className="text-sm text-red-600 bg-red-50 rounded-lg p-3">{error}</p>
+              <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
+                {error}
+              </p>
             )}
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">
-                Usuari
-              </label>
+              <label className="mb-1.5 block text-sm font-medium text-stone-700">Usuari</label>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:border-transparent"
+                className="iv-input w-full"
                 required
                 autoComplete="username"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">
-                Contrasenya
-              </label>
+              <label className="mb-1.5 block text-sm font-medium text-stone-700">Contrasenya</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:border-transparent"
+                className="iv-input w-full"
                 required
                 autoComplete="current-password"
               />
             </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 rounded-lg bg-neutral-900 text-white font-medium hover:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-neutral-500 disabled:opacity-50"
-            >
+            <button type="submit" disabled={loading} className="iv-btn w-full">
               {loading ? 'Entrant...' : 'Entrar'}
             </button>
           </form>

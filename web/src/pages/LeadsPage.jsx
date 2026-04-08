@@ -80,18 +80,22 @@ export default function LeadsPage() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-3 mb-6">
+      <h1 className="iv-page-title">Leads</h1>
+      <p className="iv-page-sub">Cerca, filtra i exporta la llista de contactes.</p>
+
+      <div className="iv-card mb-6 p-4 sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <input
           type="search"
           placeholder="Cercar per nom, mòbil, DNI..."
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          className="rounded-lg border border-neutral-300 px-3 py-2 w-64 text-sm"
+          className="iv-input w-full min-w-0 sm:max-w-xs sm:flex-1"
         />
         <select
           value={zona}
           onChange={(e) => { setZona(e.target.value); setPage(1); }}
-          className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+          className="iv-input min-w-0 text-sm sm:w-auto"
         >
           <option value="">Totes les zones</option>
           <option value="Qualsevol">Qualsevol</option>
@@ -103,7 +107,7 @@ export default function LeadsPage() {
         <select
           value={estat}
           onChange={(e) => { setEstat(e.target.value); setPage(1); }}
-          className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+          className="iv-input min-w-0 text-sm sm:w-auto"
         >
           <option value="">Tots els estats</option>
           <option value="completat">Completat</option>
@@ -112,7 +116,7 @@ export default function LeadsPage() {
         <select
           value={intencioContacte}
           onChange={(e) => { setIntencioContacte(e.target.value); setPage(1); }}
-          className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+          className="iv-input min-w-0 text-sm sm:w-auto"
         >
           <option value="">Intenció contacte</option>
           <option value="mes_info">Més info</option>
@@ -121,7 +125,7 @@ export default function LeadsPage() {
         <select
           value={tempsUltimaEmpresa}
           onChange={(e) => { setTempsUltimaEmpresa(e.target.value); setPage(1); }}
-          className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+          className="iv-input min-w-0 text-sm sm:w-auto"
         >
           <option value="">Temps última empresa</option>
           <option value="menys_dun_any">Menys d&apos;un any</option>
@@ -131,7 +135,7 @@ export default function LeadsPage() {
         <select
           value={empresaEspanyola}
           onChange={(e) => { setEmpresaEspanyola(e.target.value); setPage(1); }}
-          className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+          className="iv-input min-w-0 text-sm sm:w-auto"
         >
           <option value="">Empresa esp.</option>
           <option value="si">Sí</option>
@@ -140,7 +144,7 @@ export default function LeadsPage() {
         <select
           value={tipusContracte}
           onChange={(e) => { setTipusContracte(e.target.value); setPage(1); }}
-          className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+          className="iv-input min-w-0 text-sm sm:w-auto"
         >
           <option value="">Contracte</option>
           <option value="fix">Fix</option>
@@ -149,7 +153,7 @@ export default function LeadsPage() {
         <select
           value={ingressosNetos}
           onChange={(e) => { setIngressosNetos(e.target.value); setPage(1); }}
-          className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+          className="iv-input min-w-0 text-sm sm:w-auto"
         >
           <option value="">Ingressos</option>
           <option value="menys_1600">&lt; 1.600</option>
@@ -160,15 +164,15 @@ export default function LeadsPage() {
           <button
             type="button"
             onClick={() => setShowColPicker((s) => !s)}
-            className="rounded-lg border border-neutral-300 px-4 py-2 text-sm bg-white hover:bg-neutral-50"
+            className="iv-btn-secondary w-full sm:w-auto"
           >
             Columnes ({visibleCols.length})
           </button>
           {showColPicker && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setShowColPicker(false)} />
-              <div className="absolute left-0 top-full mt-1 z-20 bg-white rounded-xl border border-neutral-200 shadow-lg p-3 max-h-80 overflow-y-auto min-w-[200px]">
-                <p className="text-xs font-medium text-neutral-500 mb-2">Mostrar columnes</p>
+              <div className="absolute left-0 top-full z-20 mt-1 min-w-[220px] max-h-80 overflow-y-auto rounded-2xl border border-stone-200 bg-white p-3 shadow-xl ring-1 ring-stone-200/60 sm:left-auto sm:right-0">
+                <p className="mb-2 text-xs font-medium text-stone-500">Mostrar columnes</p>
                 {ALL_LEAD_COLUMNS.map((col) => (
                   <label key={col.key} className="flex items-center gap-2 py-1.5 text-sm cursor-pointer">
                     <input
@@ -186,28 +190,35 @@ export default function LeadsPage() {
         <button
           type="button"
           onClick={handleExport}
-          className="rounded-lg bg-neutral-800 text-white px-4 py-2 text-sm font-medium hover:bg-neutral-700"
+          className="iv-btn w-full sm:ml-auto sm:w-auto"
         >
           Exportar CSV
         </button>
+        </div>
       </div>
 
       {loading ? (
-        <p className="text-neutral-500">Carregant...</p>
+        <div className="flex items-center gap-2 text-stone-500">
+          <span
+            className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-teal-600 border-t-transparent"
+            aria-hidden
+          />
+          Carregant...
+        </div>
       ) : (
         <>
-          <p className="text-sm text-neutral-500 mb-2">
+          <p className="mb-2 text-sm text-stone-500">
             {data.total} lead(s) · pàgina {data.page} de {data.totalPages || 1}
           </p>
-          <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-neutral-50 border-b border-neutral-200">
+          <div className="iv-table-shell">
+            <div className="-mx-px overflow-x-auto">
+              <table className="w-full min-w-[640px] text-sm">
+                <thead className="iv-table-head">
                   <tr>
                     {visibleCols.map((key) => {
                       const col = ALL_LEAD_COLUMNS.find((c) => c.key === key);
                       return (
-                        <th key={key} className="text-left p-3 font-medium text-neutral-700 whitespace-nowrap">
+                        <th key={key} className="whitespace-nowrap p-3 text-left font-medium text-stone-700">
                           {col?.label ?? key}
                         </th>
                       );
@@ -216,9 +227,9 @@ export default function LeadsPage() {
                 </thead>
                 <tbody>
                   {data.items.map((lead) => (
-                    <tr key={lead.id} className="border-b border-neutral-100 hover:bg-neutral-50">
+                    <tr key={lead.id} className="iv-table-row">
                       {visibleCols.map((key) => (
-                        <td key={key} className="p-3 whitespace-nowrap max-w-[200px] truncate" title={formatCellValue(lead, key)}>
+                        <td key={key} className="max-w-[200px] truncate whitespace-nowrap p-3 text-stone-800" title={formatCellValue(lead, key)}>
                           {formatCellValue(lead, key)}
                         </td>
                       ))}
@@ -229,23 +240,23 @@ export default function LeadsPage() {
             </div>
           </div>
           {data.totalPages > 1 && (
-            <div className="flex justify-center gap-2 mt-4">
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
               <button
                 type="button"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => p - 1)}
-                className="rounded-lg border border-neutral-300 px-3 py-1 text-sm disabled:opacity-50"
+                className="iv-btn-secondary px-4 py-2 text-sm disabled:opacity-50"
               >
                 Anterior
               </button>
-              <span className="py-1 text-sm text-neutral-600">
+              <span className="rounded-full bg-stone-100 px-3 py-1.5 text-sm tabular-nums text-stone-600">
                 {page} / {data.totalPages}
               </span>
               <button
                 type="button"
                 disabled={page >= data.totalPages}
                 onClick={() => setPage((p) => p + 1)}
-                className="rounded-lg border border-neutral-300 px-3 py-1 text-sm disabled:opacity-50"
+                className="iv-btn-secondary px-4 py-2 text-sm disabled:opacity-50"
               >
                 Següent
               </button>

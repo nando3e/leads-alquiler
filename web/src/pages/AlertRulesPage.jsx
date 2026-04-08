@@ -107,7 +107,7 @@ export default function AlertRulesPage() {
           step={field.key.includes('preu') ? 50 : 1}
           value={value}
           onChange={(e) => setValue(field.key, e.target.value ? Number(e.target.value) : '')}
-          className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm w-28"
+          className="iv-input w-28 py-1.5 text-sm"
           placeholder={field.placeholder}
         />
       );
@@ -118,7 +118,7 @@ export default function AlertRulesPage() {
         <select
           value={value}
           onChange={(e) => setValue(field.key, e.target.value)}
-          className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm min-w-[120px]"
+          className="iv-input min-w-[120px] py-1.5 text-sm"
         >
           {field.options.map((opt) => (
             <option key={opt.value || 'x'} value={opt.value}>
@@ -160,17 +160,18 @@ export default function AlertRulesPage() {
 
   return (
     <div>
-      <h2 className="text-lg font-semibold text-neutral-900 mb-4">Regles d'alerta</h2>
+      <h1 className="iv-page-title">Regles d&apos;alerta</h1>
+      <p className="iv-page-sub">Defineix criteris i notificacions quan un lead encaixi.</p>
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-neutral-200 p-6 mb-6 max-w-2xl">
+      <form onSubmit={handleSubmit} className="iv-card mb-6 max-w-2xl p-6">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">Nom de la regla</label>
+            <label className="mb-1 block text-sm font-medium text-stone-700">Nom de la regla</label>
             <input
               type="text"
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+              className="iv-input w-full"
               placeholder="ex. Perfil ideal"
               required
             />
@@ -186,8 +187,8 @@ export default function AlertRulesPage() {
           </div>
 
           {/* ── Notificacions al administrador ── */}
-          <div className="border-t border-neutral-200 pt-4">
-            <p className="text-sm font-medium text-neutral-700 mb-3">Notificar a l'administrador quan es compleixi la regla</p>
+          <div className="border-t border-stone-200 pt-4">
+            <p className="mb-3 text-sm font-medium text-stone-700">Notificar a l&apos;administrador quan es compleixi la regla</p>
             <div className="space-y-3">
               <label className="flex items-center gap-2 text-sm">
                 <input
@@ -203,7 +204,7 @@ export default function AlertRulesPage() {
                   value={form.admin_phone}
                   onChange={(e) => setForm((f) => ({ ...f, admin_phone: e.target.value }))}
                   placeholder="34600000000 (sense +)"
-                  className="w-full rounded-lg border border-neutral-300 px-3 py-1.5 text-sm"
+                  className="iv-input w-full py-1.5 text-sm"
                 />
               )}
               <label className="flex items-center gap-2 text-sm">
@@ -220,14 +221,14 @@ export default function AlertRulesPage() {
                   value={form.admin_email}
                   onChange={(e) => setForm((f) => ({ ...f, admin_email: e.target.value }))}
                   placeholder="admin@exemple.com"
-                  className="w-full rounded-lg border border-neutral-300 px-3 py-1.5 text-sm"
+                  className="iv-input w-full py-1.5 text-sm"
                 />
               )}
             </div>
           </div>
 
-          <div className="border-t border-neutral-200 pt-4">
-            <p className="text-sm font-medium text-neutral-700 mb-3">Incloure en la regla (activa el toggle i tria el valor)</p>
+          <div className="border-t border-stone-200 pt-4">
+            <p className="mb-3 text-sm font-medium text-stone-700">Incloure en la regla (activa el toggle i tria el valor)</p>
             <ul className="space-y-3">
               {RULE_FIELDS.map((field) => (
                 <li key={field.key} className="flex flex-wrap items-center gap-3">
@@ -236,9 +237,9 @@ export default function AlertRulesPage() {
                       type="checkbox"
                       checked={!!form.enabled[field.key]}
                       onChange={(e) => setEnabled(field.key, e.target.checked)}
-                      className="rounded border-neutral-300"
+                      className="rounded border-stone-300 text-teal-700 focus:ring-teal-500"
                     />
-                    <span className="text-sm text-neutral-800">{field.label}</span>
+                    <span className="text-sm text-stone-800">{field.label}</span>
                   </label>
                   {renderFieldInput(field)}
                 </li>
@@ -246,11 +247,8 @@ export default function AlertRulesPage() {
             </ul>
           </div>
         </div>
-        <div className="mt-6 flex gap-2">
-          <button
-            type="submit"
-            className="rounded-lg bg-neutral-900 text-white px-4 py-2 text-sm font-medium hover:bg-neutral-800"
-          >
+        <div className="mt-6 flex flex-wrap gap-2">
+          <button type="submit" className="iv-btn">
             {editing ? 'Desar' : 'Afegir regla'}
           </button>
           {editing && (
@@ -260,7 +258,7 @@ export default function AlertRulesPage() {
                 setEditing(null);
                 setForm({ name: '', active: true, enabled: defaultEnabled(), values: defaultValues() });
               }}
-              className="rounded-lg border border-neutral-300 px-4 py-2 text-sm"
+              className="iv-btn-secondary"
             >
               Cancel·lar
             </button>
@@ -269,23 +267,37 @@ export default function AlertRulesPage() {
       </form>
 
       {loading ? (
-        <p className="text-neutral-500">Carregant...</p>
+        <div className="flex items-center gap-2 text-stone-500">
+          <span
+            className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-teal-600 border-t-transparent"
+            aria-hidden
+          />
+          Carregant...
+        </div>
       ) : (
         <ul className="space-y-2">
           {(Array.isArray(list) ? list : []).map((rule) => (
             <li
               key={rule.id}
-              className="bg-white rounded-xl border border-neutral-200 p-4 flex items-center justify-between"
+              className="iv-card flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
             >
               <div>
-                <span className="font-medium text-neutral-900">{rule.name}</span>
-                {!rule.active && <span className="ml-2 text-neutral-500 text-sm">(inactiva)</span>}
+                <span className="font-medium text-stone-900">{rule.name}</span>
+                {!rule.active && <span className="ml-2 text-sm text-stone-500">(inactiva)</span>}
               </div>
               <div className="flex gap-2">
-                <button type="button" onClick={() => startEdit(rule)} className="text-sm text-neutral-600 hover:text-neutral-900">
+                <button
+                  type="button"
+                  onClick={() => startEdit(rule)}
+                  className="text-sm font-medium text-teal-700 hover:text-teal-900 hover:underline"
+                >
                   Editar
                 </button>
-                <button type="button" onClick={() => handleDelete(rule.id)} className="text-sm text-red-600 hover:text-red-700">
+                <button
+                  type="button"
+                  onClick={() => handleDelete(rule.id)}
+                  className="text-sm font-medium text-red-600 hover:text-red-800 hover:underline"
+                >
                   Eliminar
                 </button>
               </div>

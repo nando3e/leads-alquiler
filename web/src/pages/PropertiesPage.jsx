@@ -181,23 +181,30 @@ export default function PropertiesPage() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-3 mb-6">
-        <h1 className="text-xl font-semibold text-neutral-900 w-full sm:w-auto">Propietats</h1>
-        <button
-          type="button"
-          onClick={openNew}
-          className="rounded-lg bg-neutral-900 text-white px-4 py-2 text-sm font-medium"
-        >
-          Nova propietat
-        </button>
-        <label className="rounded-lg border border-neutral-300 px-4 py-2 text-sm cursor-pointer hover:bg-neutral-50">
-          Importar CSV / Excel
-          <input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleImport} />
-        </label>
-        {importMsg && <span className="text-sm text-neutral-600">{importMsg}</span>}
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <div>
+          <h1 className="iv-page-title">Propietats</h1>
+          <p className="iv-page-sub mb-0">Catàleg i filtres de propietats.</p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <button type="button" onClick={openNew} className="iv-btn w-full sm:w-auto">
+            Nova propietat
+          </button>
+          <label className="iv-btn-secondary w-full cursor-pointer text-center sm:w-auto">
+            Importar CSV / Excel
+            <input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleImport} />
+          </label>
+        </div>
       </div>
+      {importMsg && (
+        <p className="mb-4 rounded-xl border border-teal-100 bg-teal-50/80 px-3 py-2 text-sm text-teal-900">
+          {importMsg}
+        </p>
+      )}
 
-      <div className="flex flex-wrap items-center gap-3 mb-4">
+      <div className="iv-card mb-6 p-4 sm:p-5">
+        <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-stone-500">Filtres</div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
         <input
           type="search"
           placeholder="Cercar ref, direcció, zona..."
@@ -206,7 +213,7 @@ export default function PropertiesPage() {
             setSearch(e.target.value);
             setPage(1);
           }}
-          className="rounded-lg border border-neutral-300 px-3 py-2 w-64 text-sm"
+          className="iv-input w-full min-w-0 sm:max-w-xs sm:flex-1"
         />
         <input
           type="text"
@@ -216,7 +223,7 @@ export default function PropertiesPage() {
             setZona(e.target.value);
             setPage(1);
           }}
-          className="rounded-lg border border-neutral-300 px-3 py-2 w-36 text-sm"
+          className="iv-input w-full sm:w-36"
         />
         <select
           value={tipoOperacion}
@@ -224,7 +231,7 @@ export default function PropertiesPage() {
             setTipoOperacion(e.target.value);
             setPage(1);
           }}
-          className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+          className="iv-input w-full sm:w-auto"
         >
           <option value="">Operació</option>
           <option value="alquiler">Alquiler</option>
@@ -238,7 +245,7 @@ export default function PropertiesPage() {
             setPrecioMin(e.target.value);
             setPage(1);
           }}
-          className="rounded-lg border border-neutral-300 px-3 py-2 w-24 text-sm"
+          className="iv-input w-full sm:w-28"
         />
         <input
           type="number"
@@ -248,7 +255,7 @@ export default function PropertiesPage() {
             setPrecioMax(e.target.value);
             setPage(1);
           }}
-          className="rounded-lg border border-neutral-300 px-3 py-2 w-24 text-sm"
+          className="iv-input w-full sm:w-28"
         />
         <input
           type="number"
@@ -258,7 +265,7 @@ export default function PropertiesPage() {
             setHabitaciones(e.target.value);
             setPage(1);
           }}
-          className="rounded-lg border border-neutral-300 px-3 py-2 w-28 text-sm"
+          className="iv-input w-full sm:w-32"
         />
         <select
           value={activoFiltro}
@@ -266,79 +273,88 @@ export default function PropertiesPage() {
             setActivoFiltro(e.target.value);
             setPage(1);
           }}
-          className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+          className="iv-input w-full sm:w-auto"
         >
           <option value="">Actiu / tots</option>
           <option value="true">Actiu</option>
           <option value="false">Inactiu</option>
         </select>
+        </div>
       </div>
 
       {loading ? (
-        <p className="text-neutral-500 text-sm">Carregant...</p>
+        <div className="flex items-center gap-2 text-stone-500">
+          <span
+            className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-teal-600 border-t-transparent"
+            aria-hidden
+          />
+          Carregant...
+        </div>
       ) : (
         <>
-          <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="border-b border-neutral-200 bg-neutral-50 text-left">
-                  <th className="px-3 py-2 font-medium">Ref</th>
-                  <th className="px-3 py-2 font-medium">Zona</th>
-                  <th className="px-3 py-2 font-medium">Operació</th>
-                  <th className="px-3 py-2 font-medium">Preu</th>
-                  <th className="px-3 py-2 font-medium">Hab.</th>
-                  <th className="px-3 py-2 font-medium">Actiu</th>
-                  <th className="px-3 py-2 font-medium w-40">Accions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.items.map((row) => (
-                  <tr key={row.id} className="border-b border-neutral-100 hover:bg-neutral-50/80">
-                    <td className="px-3 py-2 font-mono text-xs">{row.ref_code}</td>
-                    <td className="px-3 py-2 max-w-[140px] truncate">{row.zona || '—'}</td>
-                    <td className="px-3 py-2">{row.tipo_operacion}</td>
-                    <td className="px-3 py-2">{row.precio != null ? `${row.precio} €` : '—'}</td>
-                    <td className="px-3 py-2">{row.habitaciones ?? '—'}</td>
-                    <td className="px-3 py-2">{row.activo ? 'Sí' : 'No'}</td>
-                    <td className="px-3 py-2">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(row)}
-                        className="text-blue-600 hover:underline mr-3"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => remove(row.id)}
-                        className="text-red-600 hover:underline"
-                      >
-                        Eliminar
-                      </button>
-                    </td>
+          <div className="iv-table-shell">
+            <div className="-mx-px overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="iv-table-head">
+                  <tr className="text-left">
+                    <th className="px-3 py-3 font-medium text-stone-700">Ref</th>
+                    <th className="px-3 py-3 font-medium text-stone-700">Zona</th>
+                    <th className="px-3 py-3 font-medium text-stone-700">Operació</th>
+                    <th className="px-3 py-3 font-medium text-stone-700">Preu</th>
+                    <th className="px-3 py-3 font-medium text-stone-700">Hab.</th>
+                    <th className="px-3 py-3 font-medium text-stone-700">Actiu</th>
+                    <th className="w-40 px-3 py-3 font-medium text-stone-700">Accions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {data.items.map((row) => (
+                    <tr key={row.id} className="iv-table-row">
+                      <td className="px-3 py-2.5 font-mono text-xs text-stone-800">{row.ref_code}</td>
+                      <td className="max-w-[140px] truncate px-3 py-2.5 text-stone-800">{row.zona || '—'}</td>
+                      <td className="px-3 py-2.5 text-stone-800">{row.tipo_operacion}</td>
+                      <td className="px-3 py-2.5 text-stone-800">{row.precio != null ? `${row.precio} €` : '—'}</td>
+                      <td className="px-3 py-2.5 text-stone-800">{row.habitaciones ?? '—'}</td>
+                      <td className="px-3 py-2.5 text-stone-800">{row.activo ? 'Sí' : 'No'}</td>
+                      <td className="px-3 py-2.5">
+                        <button
+                          type="button"
+                          onClick={() => openEdit(row)}
+                          className="mr-3 font-medium text-teal-700 hover:text-teal-900 hover:underline"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => remove(row.id)}
+                          className="font-medium text-red-600 hover:text-red-800 hover:underline"
+                        >
+                          Eliminar
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
           {data.totalPages > 1 && (
-            <div className="flex items-center gap-2 mt-4">
+            <div className="mt-4 flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="px-3 py-1 rounded border text-sm disabled:opacity-40"
+                className="iv-btn-secondary px-4 py-2 text-sm disabled:opacity-40"
               >
                 Anterior
               </button>
-              <span className="text-sm text-neutral-600">
+              <span className="rounded-full bg-stone-100 px-3 py-1.5 text-sm text-stone-600">
                 Pàgina {page} de {data.totalPages} ({data.total} total)
               </span>
               <button
                 type="button"
                 disabled={page >= data.totalPages}
                 onClick={() => setPage((p) => p + 1)}
-                className="px-3 py-1 rounded border text-sm disabled:opacity-40"
+                className="iv-btn-secondary px-4 py-2 text-sm disabled:opacity-40"
               >
                 Següent
               </button>
@@ -348,41 +364,41 @@ export default function PropertiesPage() {
       )}
 
       {modal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 shadow-xl">
-            <h2 className="text-lg font-semibold mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/45 p-4 backdrop-blur-sm">
+          <div className="iv-card max-h-[90vh] w-full max-w-lg overflow-y-auto p-6 shadow-2xl ring-1 ring-stone-200/80">
+            <h2 className="mb-4 text-lg font-semibold text-stone-900">
               {modal === 'new' ? 'Nova propietat' : 'Editar propietat'}
             </h2>
             <div className="grid gap-3 text-sm">
               <label className="block">
-                <span className="text-neutral-600">ref_code *</span>
+                <span className="text-stone-600">ref_code *</span>
                 <input
-                  className="mt-1 w-full rounded border px-3 py-2"
+                  className="iv-input mt-1 w-full"
                   value={form.ref_code}
                   onChange={(e) => setForm((f) => ({ ...f, ref_code: e.target.value }))}
                   disabled={modal === 'edit'}
                 />
               </label>
               <label className="block">
-                <span className="text-neutral-600">Direcció</span>
+                <span className="text-stone-600">Direcció</span>
                 <input
-                  className="mt-1 w-full rounded border px-3 py-2"
+                  className="iv-input mt-1 w-full"
                   value={form.direccion}
                   onChange={(e) => setForm((f) => ({ ...f, direccion: e.target.value }))}
                 />
               </label>
               <label className="block">
-                <span className="text-neutral-600">Zona</span>
+                <span className="text-stone-600">Zona</span>
                 <input
-                  className="mt-1 w-full rounded border px-3 py-2"
+                  className="iv-input mt-1 w-full"
                   value={form.zona}
                   onChange={(e) => setForm((f) => ({ ...f, zona: e.target.value }))}
                 />
               </label>
               <label className="block">
-                <span className="text-neutral-600">Operació</span>
+                <span className="text-stone-600">Operació</span>
                 <select
-                  className="mt-1 w-full rounded border px-3 py-2"
+                  className="iv-input mt-1 w-full"
                   value={form.tipo_operacion}
                   onChange={(e) => setForm((f) => ({ ...f, tipo_operacion: e.target.value }))}
                 >
@@ -391,46 +407,46 @@ export default function PropertiesPage() {
                 </select>
               </label>
               <label className="block">
-                <span className="text-neutral-600">Tipus vivenda</span>
+                <span className="text-stone-600">Tipus vivenda</span>
                 <input
-                  className="mt-1 w-full rounded border px-3 py-2"
+                  className="iv-input mt-1 w-full"
                   value={form.tipo_vivienda}
                   onChange={(e) => setForm((f) => ({ ...f, tipo_vivienda: e.target.value }))}
                 />
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <label>
-                  <span className="text-neutral-600">Habitacions</span>
+                  <span className="text-stone-600">Habitacions</span>
                   <input
                     type="number"
-                    className="mt-1 w-full rounded border px-3 py-2"
+                    className="iv-input mt-1 w-full"
                     value={form.habitaciones}
                     onChange={(e) => setForm((f) => ({ ...f, habitaciones: e.target.value }))}
                   />
                 </label>
                 <label>
-                  <span className="text-neutral-600">Banys</span>
+                  <span className="text-stone-600">Banys</span>
                   <input
                     type="number"
-                    className="mt-1 w-full rounded border px-3 py-2"
+                    className="iv-input mt-1 w-full"
                     value={form.banos}
                     onChange={(e) => setForm((f) => ({ ...f, banos: e.target.value }))}
                   />
                 </label>
               </div>
               <label className="block">
-                <span className="text-neutral-600">Preu (€)</span>
+                <span className="text-stone-600">Preu (€)</span>
                 <input
                   type="number"
-                  className="mt-1 w-full rounded border px-3 py-2"
+                  className="iv-input mt-1 w-full"
                   value={form.precio}
                   onChange={(e) => setForm((f) => ({ ...f, precio: e.target.value }))}
                 />
               </label>
               <label className="block">
-                <span className="text-neutral-600">Descripció</span>
+                <span className="text-stone-600">Descripció</span>
                 <textarea
-                  className="mt-1 w-full rounded border px-3 py-2 min-h-[80px]"
+                  className="iv-textarea mt-1 w-full"
                   value={form.descripcion}
                   onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))}
                 />
@@ -444,20 +460,11 @@ export default function PropertiesPage() {
                 <span>Actiu</span>
               </label>
             </div>
-            <div className="flex justify-end gap-2 mt-6">
-              <button
-                type="button"
-                onClick={() => setModal(null)}
-                className="px-4 py-2 rounded-lg border text-sm"
-              >
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button type="button" onClick={() => setModal(null)} className="iv-btn-secondary w-full sm:w-auto">
                 Cancel·lar
               </button>
-              <button
-                type="button"
-                onClick={save}
-                disabled={saving}
-                className="px-4 py-2 rounded-lg bg-neutral-900 text-white text-sm disabled:opacity-50"
-              >
+              <button type="button" onClick={save} disabled={saving} className="iv-btn w-full sm:w-auto">
                 {saving ? 'Guardant...' : 'Guardar'}
               </button>
             </div>
