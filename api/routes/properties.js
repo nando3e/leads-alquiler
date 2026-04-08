@@ -83,6 +83,19 @@ function parseBool(v) {
   return Boolean(v);
 }
 
+/** Accepta preus enters amb o sense separador de milers (ex. 245000, 245.000, 1.234.567). */
+function parsePrecioImport(v) {
+  if (v == null || v === '') return null;
+  if (typeof v === 'number' && Number.isFinite(v)) return Math.round(v);
+  let s = String(v).trim().replace(/\s/g, '');
+  if (!s) return null;
+  if (/^\d{1,3}(\.\d{3})+$/u.test(s)) {
+    return parseInt(s.replace(/\./g, ''), 10);
+  }
+  const n = Number(s.replace(/\./g, '').replace(',', '.'));
+  return Number.isFinite(n) ? Math.round(n) : null;
+}
+
 /** Booleano por defecto false (cel·la buida = no). */
 function parseMascotasField(v) {
   if (v === true || v === 1) return true;
@@ -110,7 +123,7 @@ function parseRow(raw) {
     habitaciones: row.habitaciones != null && row.habitaciones !== '' ? parseInt(String(row.habitaciones), 10) : null,
     banos: row.banos != null && row.banos !== '' ? parseInt(String(row.banos), 10) : null,
     garaje: row.garaje != null ? String(row.garaje) : null,
-    precio: row.precio != null && row.precio !== '' ? Number(String(row.precio).replace(',', '.')) : null,
+    precio: parsePrecioImport(row.precio),
     descripcion: row.descripcion != null ? String(row.descripcion) : null,
     mascotas: parseMascotasField(row.mascotas),
     activo: parseBool(row.activo),

@@ -18,6 +18,19 @@ const emptyForm = {
   activo: true,
 };
 
+/** Preu amb separador de milers, sense decimals (visualització). */
+function formatPrecioTabla(value, tipoOperacion) {
+  if (value == null || value === '') return '—';
+  const n = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(n)) return '—';
+  const fmt = new Intl.NumberFormat('ca-ES', {
+    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
+  }).format(n);
+  if (tipoOperacion === 'alquiler') return `${fmt} €/mes`;
+  return `${fmt} €`;
+}
+
 export default function PropertiesPage() {
   const { api } = useAuth();
   const [data, setData] = useState({ items: [], total: 0, page: 1, totalPages: 0 });
@@ -299,12 +312,18 @@ export default function PropertiesPage() {
             <code className="rounded bg-stone-100 px-1 py-0.5 text-xs">referencia</code>,{' '}
             <code className="rounded bg-stone-100 px-1 py-0.5 text-xs">codigo</code>…
           </p>
-          <div className="mb-3 overflow-x-auto rounded-lg border border-stone-200 bg-stone-50/90">
-            <table className="min-w-full text-left text-xs">
-              <thead className="border-b border-stone-200 bg-stone-100/80 text-stone-600">
+          <p className="mb-2 text-xs font-medium text-stone-600">
+            Ordre recomanat de totes les columnes (una per columna al CSV / Excel):
+          </p>
+          <pre className="mb-3 max-h-40 overflow-x-auto overflow-y-auto rounded-lg border border-stone-200 bg-white p-3 font-mono text-[10px] leading-snug text-stone-800 sm:text-[11px]">
+            {`ref_code,direccion,zona,tipo_operacion,tipo_vivienda,planta,ascensor,habitaciones,banos,garaje,precio,descripcion,mascotas,activo`}
+          </pre>
+          <div className="mb-3 max-h-[min(70vh,22rem)] overflow-x-auto overflow-y-auto rounded-lg border border-stone-200 bg-stone-50/90">
+            <table className="min-w-[min(100%,36rem)] text-left text-xs">
+              <thead className="sticky top-0 z-[1] border-b border-stone-200 bg-stone-100/95 text-stone-600 backdrop-blur-sm">
                 <tr>
-                  <th className="whitespace-nowrap px-3 py-2 font-semibold">Camp (recomanat)</th>
-                  <th className="px-3 py-2 font-semibold">Contingut</th>
+                  <th className="whitespace-nowrap px-3 py-2 font-semibold">Camp</th>
+                  <th className="min-w-[12rem] px-3 py-2 font-semibold">Contingut</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
@@ -314,11 +333,11 @@ export default function PropertiesPage() {
                 </tr>
                 <tr>
                   <td className="whitespace-nowrap px-3 py-2 font-mono text-stone-800">direccion</td>
-                  <td className="px-3 py-2">Adreça</td>
+                  <td className="px-3 py-2">Adreça completa</td>
                 </tr>
                 <tr>
                   <td className="whitespace-nowrap px-3 py-2 font-mono text-stone-800">zona</td>
-                  <td className="px-3 py-2">Zona / ciutat</td>
+                  <td className="px-3 py-2">Zona / barri</td>
                 </tr>
                 <tr>
                   <td className="whitespace-nowrap px-3 py-2 font-mono text-stone-800">tipo_operacion</td>
@@ -332,20 +351,36 @@ export default function PropertiesPage() {
                   <td className="px-3 py-2">Ex. Pis, Casa</td>
                 </tr>
                 <tr>
-                  <td className="whitespace-nowrap px-3 py-2 font-mono text-stone-800">planta, ascensor, garaje</td>
-                  <td className="px-3 py-2">Text lliure (sí/no també val per a booleans)</td>
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-stone-800">planta</td>
+                  <td className="px-3 py-2">Text (número o bé, entresol…)</td>
                 </tr>
                 <tr>
-                  <td className="whitespace-nowrap px-3 py-2 font-mono text-stone-800">habitaciones, banos</td>
-                  <td className="px-3 py-2">Números enters</td>
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-stone-800">ascensor</td>
+                  <td className="px-3 py-2">Text; sí/no acceptat</td>
+                </tr>
+                <tr>
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-stone-800">habitaciones</td>
+                  <td className="px-3 py-2">Número enter</td>
+                </tr>
+                <tr>
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-stone-800">banos</td>
+                  <td className="px-3 py-2">Número enter</td>
+                </tr>
+                <tr>
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-stone-800">garaje</td>
+                  <td className="px-3 py-2">Text; sí/no acceptat</td>
                 </tr>
                 <tr>
                   <td className="whitespace-nowrap px-3 py-2 font-mono text-stone-800">precio</td>
-                  <td className="px-3 py-2">Número (coma o punt decimal)</td>
+                  <td className="px-3 py-2">
+                    Número enter (sense decimals). Pots usar separador de milers:{' '}
+                    <code className="text-xs">245000</code>, <code className="text-xs">245.000</code> o{' '}
+                    <code className="text-xs">1.234.567</code>
+                  </td>
                 </tr>
                 <tr>
                   <td className="whitespace-nowrap px-3 py-2 font-mono text-stone-800">descripcion</td>
-                  <td className="px-3 py-2">Text</td>
+                  <td className="px-3 py-2">Text (entre cometes si té comes)</td>
                 </tr>
                 <tr>
                   <td className="whitespace-nowrap px-3 py-2 font-mono text-stone-800">mascotas</td>
@@ -364,11 +399,11 @@ export default function PropertiesPage() {
               </tbody>
             </table>
           </div>
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-stone-500">Exemple de dues files (CSV)</p>
-          <pre className="overflow-x-auto rounded-lg border border-stone-200 bg-white p-3 font-mono text-[11px] leading-relaxed text-stone-800">
-            {`ref_code,direccion,zona,tipo_operacion,tipo_vivienda,habitaciones,precio,mascotas,activo
-REF-001,"Calle Mayor 5",Olot,alquiler,Piso,3,750,si,si
-REF-002,Calle Nou 2,Banyoles,compra,Casa,4,195000,no,1`}
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-stone-500">Exemple (dues files, totes les columnes)</p>
+          <pre className="max-h-48 overflow-x-auto overflow-y-auto rounded-lg border border-stone-200 bg-white p-3 font-mono text-[10px] leading-relaxed text-stone-800 sm:text-[11px]">
+            {`ref_code,direccion,zona,tipo_operacion,tipo_vivienda,planta,ascensor,habitaciones,banos,garaje,precio,descripcion,mascotas,activo
+REF-001,"Calle Mayor 5",Olot,alquiler,Piso,3,si,3,2,no,750,"Piso amb balcó.",si,si
+REF-002,Calle Nou 2,Banyoles,compra,Casa,,no,4,3,si,195.000,Casa amb jardí.,no,1`}
           </pre>
           <p className="mt-3 text-xs text-stone-600">
             Si un <code className="rounded bg-stone-100 px-1">ref_code</code> ja existeix, la fila{' '}
@@ -495,7 +530,9 @@ REF-002,Calle Nou 2,Banyoles,compra,Casa,4,195000,no,1`}
                       <td className="px-3 py-2.5 font-mono text-xs text-stone-800">{row.ref_code}</td>
                       <td className="max-w-[140px] truncate px-3 py-2.5 text-stone-800">{row.zona || '—'}</td>
                       <td className="px-3 py-2.5 text-stone-800">{row.tipo_operacion}</td>
-                      <td className="px-3 py-2.5 text-stone-800">{row.precio != null ? `${row.precio} €` : '—'}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-stone-800">
+                        {formatPrecioTabla(row.precio, row.tipo_operacion)}
+                      </td>
                       <td className="px-3 py-2.5 text-stone-800">{row.habitaciones ?? '—'}</td>
                       <td className="px-3 py-2.5 text-stone-800">{row.mascotas ? 'Sí' : 'No'}</td>
                       <td className="px-3 py-2.5 text-stone-800">{row.activo ? 'Sí' : 'No'}</td>
