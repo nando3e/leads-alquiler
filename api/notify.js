@@ -4,7 +4,7 @@
  * - Email: vía SMTP con nodemailer
  */
 
-import { notifyAgent as sendBuilderBot } from './bot/builderbot.js';
+import { notifyAgent as sendBuilderBot } from './builderbot.js';
 
 function buildAlertMessage(lead, requirementName) {
   const lines = [

@@ -7,16 +7,14 @@ import {
   updateLeadAlertSentAt,
 } from '../alerts.js';
 import { notifyN8nAlert, notifyFormularioEnviado } from '../webhook.js';
-import { getSession } from '../bot/session.js';
-import { sendMessage as sendChatwootMessage } from '../bot/chatwoot.js';
-import { getPanelConfig } from '../bot/config.js';
+import { getPanelConfig, getLocalizedMsg } from '../panelConfig.js';
 import { notifyAdminWhatsApp, notifyAdminEmail } from '../notify.js';
 
 const LEAD_COLUMNS = [
   'nom', 'cognoms', 'dni_nie', 'mobil', 'fix',
   'tipus_immoble', 'preu_max_mensual', 'moblat', 'habitacions_min', 'banys_min',
   'parking', 'ascensor', 'calefaccio', 'altres', 'zona', 'zona_altres',
-  'origen', 'referencia', 'intencio_contacte', 'situacio_laboral', 'sector_professio',
+  'origen', 'referencia', 'reference', 'intencio_contacte', 'situacio_laboral', 'sector_professio',
   'temps_ultima_empresa', 'empresa_espanyola', 'tipus_contracte', 'ingressos_netos_mensuals',
   'edat',
   'mascotes', 'quanta_gent_viura', 'menors', 'observacions',
@@ -45,6 +43,16 @@ const NOT_NULL_DEFAULTS = {
 
 function normalizeValue(col, v) {
   if (v === '' || v === undefined) return null;
+  if (col === 'reference' && v != null) {
+    if (typeof v === 'object') return v;
+    if (typeof v === 'string') {
+      try {
+        return JSON.parse(v);
+      } catch {
+        return null;
+      }
+    }
+  }
   if (col === 'preu_max_mensual' && v != null) return Number(v);
   if (col === 'edat' && v != null) return parseInt(v, 10);
   if (col === 'menors' && v != null) return parseInt(v, 10);
@@ -126,7 +134,6 @@ export async function postLead(req, res) {
       const update = await query(text, values);
       const lead = update.rows[0];
       const config = await getPanelConfig();
-      const { getLocalizedMsg } = await import('../bot/config.js');
       const message = await getLocalizedMsg(config, 'msg_form_updated', lang);
       return res.status(200).json({
         ok: true,
@@ -143,22 +150,6 @@ export async function postLead(req, res) {
     const leadPlain = { ...lead };
 
     await notifyFormularioEnviado(leadPlain);
-
-    const mobilNorm = (body.mobil || '').replace(/\D/g, '');
-    const sessionId = mobilNorm.length === 9 && mobilNorm.startsWith('6') ? '34' + mobilNorm : mobilNorm;
-    const chatSession = sessionId ? await getSession(sessionId) || (mobilNorm !== sessionId ? await getSession(mobilNorm) : null) : null;
-    if (chatSession?.account_id != null && chatSession?.conversation_id != null) {
-      try {
-        const config = await getPanelConfig();
-        const { getLocalizedMsg } = await import('../bot/config.js');
-        const sessionLang = chatSession.lang || 'es';
-        const msg = await getLocalizedMsg(config, 'msg_post_form', sessionLang);
-        await sendChatwootMessage(chatSession.account_id, chatSession.conversation_id, msg);
-        await query("UPDATE chat_sessions SET estado = 'completed', updated_at = now() WHERE session_id = $1", [chatSession.session_id]);
-      } catch (e) {
-        console.error('send post-form message to Chatwoot', e);
-      }
-    }
 
     const requirements = await getActiveAlertRequirements();
     for (const req of requirements) {
@@ -187,7 +178,6 @@ export async function postLead(req, res) {
     }
 
     const config = await getPanelConfig();
-    const { getLocalizedMsg } = await import('../bot/config.js');
     const message = await getLocalizedMsg(config, 'msg_form_success', lang);
     return res.status(201).json({
       ok: true,
@@ -319,7 +309,7 @@ export async function patchLead(req, res) {
     if (allowed.length === 0) return res.status(400).json({ error: 'No fields to update' });
 
     const sets = allowed.map((c, i) => `${c} = $${i + 2}`).join(', ');
-    const values = allowed.map((c) => body[c]);
+    const values = allowed.map((c) => normalizeValue(c, body[c]));
     values.unshift(id);
     await query(
       `UPDATE leads SET ${sets}, updated_at = now() WHERE id = $1`,

@@ -29,6 +29,8 @@ const SQL_FILES = [
   resolve(scriptsDir, '008_captura_agent_capturar_datos.sql'),
   resolve(scriptsDir, '009_alq_ref_interpretacion.sql'),
   resolve(scriptsDir, '010_ensure_agents.sql'),
+  resolve(scriptsDir, '012_properties_table.sql'),
+  resolve(scriptsDir, '013_leads_reference_and_mobil_unique.sql'),
 ];
 
 function parseConnectionString(url) {

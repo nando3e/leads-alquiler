@@ -1,5 +1,5 @@
 import { query } from '../db.js';
-import { clearConfigCache } from '../bot/config.js';
+import { clearConfigCache } from '../panelConfig.js';
 
 export async function getAll(req, res) {
   try {

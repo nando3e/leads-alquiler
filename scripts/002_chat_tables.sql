@@ -22,13 +22,13 @@ CREATE TABLE IF NOT EXISTS chat_sessions (
 CREATE INDEX IF NOT EXISTS idx_chat_sessions_estado ON chat_sessions(estado);
 
 -- ---------------------------------------------------------------------------
--- 2. chat_memory — historial de mensajes por sesión (contexto para el LLM)
+-- 2. chat_memory — historial (formato compatible con n8n Postgres Chat Memory)
+--    Columna message: JSONB (rol + contenido + metadata según LangChain/n8n)
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS chat_memory (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  session_id  VARCHAR(50) NOT NULL,
-  role        VARCHAR(10) NOT NULL CHECK (role IN ('human', 'ai')),
-  content     TEXT NOT NULL,
+  id          SERIAL PRIMARY KEY,
+  session_id  VARCHAR(255) NOT NULL,
+  message     JSONB NOT NULL,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

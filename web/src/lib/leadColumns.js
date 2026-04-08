@@ -18,7 +18,8 @@ export const ALL_LEAD_COLUMNS = [
   { key: 'zona', label: 'Zona' },
   { key: 'zona_altres', label: 'Zona (altres)' },
   { key: 'origen', label: 'Origen' },
-  { key: 'referencia', label: 'Referència' },
+  { key: 'referencia', label: 'Referència anunci' },
+  { key: 'reference', label: 'Ref. immoble (chat)' },
   { key: 'intencio_contacte', label: 'Intenció contacte' },
   { key: 'situacio_laboral', label: 'Situació laboral' },
   { key: 'sector_professio', label: 'Sector / professió' },
@@ -71,8 +72,28 @@ const LABOR_LABELS = {
   ingressos_netos_mensuals: { menys_1600: '< 1.600', '1600_2000': '1.600-2.000', '2000_2400': '2.000-2.400' },
 };
 
+function formatReferenceJson(ref) {
+  if (ref == null) return '—';
+  if (typeof ref === 'string') {
+    try {
+      return formatReferenceJson(JSON.parse(ref));
+    } catch {
+      return ref;
+    }
+  }
+  if (typeof ref !== 'object') return String(ref);
+  const parts = [];
+  if (ref.portal) parts.push(ref.portal);
+  if (ref.ciudad) parts.push(ref.ciudad);
+  if (ref.direccion) parts.push(ref.direccion);
+  if (ref.precio) parts.push(`${ref.precio} €`);
+  if (ref.referencia_anuncio) parts.push(`ref: ${ref.referencia_anuncio}`);
+  return parts.length ? parts.join(' · ') : JSON.stringify(ref).slice(0, 120);
+}
+
 export function formatCellValue(lead, key) {
   const v = lead[key];
+  if (key === 'reference') return formatReferenceJson(v);
   if (v == null || v === '') return '—';
   if (key === 'created_at' || key === 'updated_at')
     return new Date(v).toLocaleDateString('ca', { dateStyle: 'short' });
