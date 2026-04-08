@@ -1,5 +1,70 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../lib/auth';
+
+const COLUMN_STORAGE_KEY = 'propertiesTableColumns';
+
+/** Columnes de dades (sense accions). */
+const COLUMN_DEFS = [
+  { id: 'ref_code', label: 'Ref' },
+  { id: 'direccion', label: 'Direcció' },
+  { id: 'zona', label: 'Zona' },
+  { id: 'tipo_operacion', label: 'Operació' },
+  { id: 'tipo_vivienda', label: 'Tipus' },
+  { id: 'planta', label: 'Planta' },
+  { id: 'ascensor', label: 'Asc.' },
+  { id: 'habitaciones', label: 'Hab.' },
+  { id: 'banos', label: 'Banys' },
+  { id: 'garaje', label: 'Gar.' },
+  { id: 'precio', label: 'Preu' },
+  { id: 'descripcion', label: 'Descripció' },
+  { id: 'mascotas', label: 'Masc.' },
+  { id: 'activo', label: 'Actiu' },
+];
+
+function defaultColumnVisibility() {
+  return Object.fromEntries(COLUMN_DEFS.map((c) => [c.id, true]));
+}
+
+function loadColumnVisibility() {
+  try {
+    const raw = localStorage.getItem(COLUMN_STORAGE_KEY);
+    if (!raw) return defaultColumnVisibility();
+    const parsed = JSON.parse(raw);
+    const base = defaultColumnVisibility();
+    return { ...base, ...parsed };
+  } catch {
+    return defaultColumnVisibility();
+  }
+}
+
+function IconPencil({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+      <path d="m15 5 4 4" />
+    </svg>
+  );
+}
+
+function IconTrash({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M3 6h18" />
+      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+      <line x1="10" x2="10" y1="11" y2="17" />
+      <line x1="14" x2="14" y1="11" y2="17" />
+    </svg>
+  );
+}
+
+function IconColumns({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M4 4h6v16H4V4zm10 0h6v16h-6V4z" opacity="0.9" />
+    </svg>
+  );
+}
 
 const emptyForm = {
   ref_code: '',
@@ -49,6 +114,89 @@ export default function PropertiesPage() {
   const [importMsg, setImportMsg] = useState(null);
   const [ragStatus, setRagStatus] = useState(null);
   const [ragSyncLoading, setRagSyncLoading] = useState(false);
+  const [visibleCols, setVisibleCols] = useState(() => loadColumnVisibility());
+  const [columnPickerOpen, setColumnPickerOpen] = useState(false);
+  const columnPickerRef = useRef(null);
+
+  useEffect(() => {
+    localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(visibleCols));
+  }, [visibleCols]);
+
+  useEffect(() => {
+    if (!columnPickerOpen) return undefined;
+    function handleDown(e) {
+      if (columnPickerRef.current && !columnPickerRef.current.contains(e.target)) {
+        setColumnPickerOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleDown);
+    return () => document.removeEventListener('mousedown', handleDown);
+  }, [columnPickerOpen]);
+
+  function toggleColumn(id) {
+    setVisibleCols((prev) => {
+      const next = { ...prev, [id]: !prev[id] };
+      const n = COLUMN_DEFS.filter((c) => next[c.id]).length;
+      if (n === 0) return prev;
+      return next;
+    });
+  }
+
+  function resetColumns() {
+    setVisibleCols(defaultColumnVisibility());
+  }
+
+  function renderCell(row, colId) {
+    switch (colId) {
+      case 'ref_code':
+        return <span className="font-mono text-[11px] leading-tight text-stone-900">{row.ref_code}</span>;
+      case 'direccion':
+        return (
+          <span className="block max-w-[min(14rem,40vw)] truncate text-stone-800" title={row.direccion || ''}>
+            {row.direccion || '—'}
+          </span>
+        );
+      case 'zona':
+        return (
+          <span className="block max-w-[8rem] truncate text-stone-800" title={row.zona || ''}>
+            {row.zona || '—'}
+          </span>
+        );
+      case 'tipo_operacion':
+        return <span className="whitespace-nowrap">{row.tipo_operacion}</span>;
+      case 'tipo_vivienda':
+        return <span className="max-w-[7rem] truncate block">{row.tipo_vivienda || '—'}</span>;
+      case 'planta':
+        return row.planta || '—';
+      case 'ascensor':
+        return row.ascensor || '—';
+      case 'habitaciones':
+        return row.habitaciones ?? '—';
+      case 'banos':
+        return row.banos ?? '—';
+      case 'garaje':
+        return row.garaje || '—';
+      case 'precio':
+        return (
+          <span className="whitespace-nowrap tabular-nums">{formatPrecioTabla(row.precio, row.tipo_operacion)}</span>
+        );
+      case 'descripcion':
+        return (
+          <span
+            className="block max-w-[min(16rem,45vw)] truncate text-stone-700"
+            title={row.descripcion || ''}
+          >
+            {row.descripcion || '—'}
+          </span>
+        );
+      case 'mascotas':
+        return row.mascotas ? 'Sí' : 'No';
+      case 'activo':
+        return row.activo ? 'Sí' : 'No';
+      default:
+        return '—';
+    }
+  }
 
   const loadRagStatus = useCallback(() => {
     api('/api/properties/sync-status')
@@ -509,48 +657,97 @@ REF-002,Calle Nou 2,Banyoles,compra,Casa,,no,4,3,si,195.000,Casa amb jardí.,no,
         </div>
       ) : (
         <>
+          <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
+            <div className="relative" ref={columnPickerRef}>
+              <button
+                type="button"
+                onClick={() => setColumnPickerOpen((o) => !o)}
+                className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 shadow-sm transition hover:border-teal-300 hover:bg-teal-50/50"
+              >
+                <IconColumns className="h-4 w-4 text-teal-700" />
+                Columnes
+              </button>
+              {columnPickerOpen && (
+                <div
+                  className="absolute right-0 z-30 mt-1 w-64 rounded-xl border border-stone-200 bg-white p-3 shadow-xl ring-1 ring-stone-900/5"
+                  role="dialog"
+                  aria-label="Selecció de columnes"
+                >
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500">Mostrar columnes</p>
+                  <ul className="max-h-64 space-y-1.5 overflow-y-auto text-sm">
+                    {COLUMN_DEFS.map((c) => (
+                      <li key={c.id}>
+                        <label className="flex cursor-pointer items-center gap-2 rounded-lg px-1 py-0.5 hover:bg-stone-50">
+                          <input
+                            type="checkbox"
+                            className="rounded border-stone-300 text-teal-600 focus:ring-teal-500"
+                            checked={visibleCols[c.id]}
+                            onChange={() => toggleColumn(c.id)}
+                          />
+                          <span className="text-stone-800">{c.label}</span>
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    type="button"
+                    onClick={resetColumns}
+                    className="mt-3 w-full rounded-lg border border-stone-200 py-1.5 text-xs font-medium text-stone-600 hover:bg-stone-50"
+                  >
+                    Mostrar totes
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="iv-table-shell">
-            <div className="-mx-px overflow-x-auto">
-              <table className="min-w-full text-sm">
+            <div className="overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+              <table className="min-w-max w-full border-collapse text-xs sm:text-sm">
                 <thead className="iv-table-head">
                   <tr className="text-left">
-                    <th className="px-3 py-3 font-medium text-stone-700">Ref</th>
-                    <th className="px-3 py-3 font-medium text-stone-700">Zona</th>
-                    <th className="px-3 py-3 font-medium text-stone-700">Operació</th>
-                    <th className="px-3 py-3 font-medium text-stone-700">Preu</th>
-                    <th className="px-3 py-3 font-medium text-stone-700">Hab.</th>
-                    <th className="px-3 py-3 font-medium text-stone-700">Masc.</th>
-                    <th className="px-3 py-3 font-medium text-stone-700">Actiu</th>
-                    <th className="w-40 px-3 py-3 font-medium text-stone-700">Accions</th>
+                    {COLUMN_DEFS.filter((c) => visibleCols[c.id]).map((c) => (
+                      <th
+                        key={c.id}
+                        className="whitespace-nowrap px-2 py-2.5 font-semibold text-stone-600 sm:px-2.5"
+                      >
+                        {c.label}
+                      </th>
+                    ))}
+                    <th className="sticky right-0 z-[2] whitespace-nowrap bg-stone-50 px-2 py-2.5 pl-4 text-right font-semibold text-stone-600 shadow-[-6px_0_8px_-4px_rgba(0,0,0,0.06)] sm:px-2.5">
+                      Accions
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.items.map((row) => (
-                    <tr key={row.id} className="iv-table-row">
-                      <td className="px-3 py-2.5 font-mono text-xs text-stone-800">{row.ref_code}</td>
-                      <td className="max-w-[140px] truncate px-3 py-2.5 text-stone-800">{row.zona || '—'}</td>
-                      <td className="px-3 py-2.5 text-stone-800">{row.tipo_operacion}</td>
-                      <td className="whitespace-nowrap px-3 py-2.5 text-stone-800">
-                        {formatPrecioTabla(row.precio, row.tipo_operacion)}
-                      </td>
-                      <td className="px-3 py-2.5 text-stone-800">{row.habitaciones ?? '—'}</td>
-                      <td className="px-3 py-2.5 text-stone-800">{row.mascotas ? 'Sí' : 'No'}</td>
-                      <td className="px-3 py-2.5 text-stone-800">{row.activo ? 'Sí' : 'No'}</td>
-                      <td className="px-3 py-2.5">
-                        <button
-                          type="button"
-                          onClick={() => openEdit(row)}
-                          className="mr-3 font-medium text-teal-700 hover:text-teal-900 hover:underline"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => remove(row.id)}
-                          className="font-medium text-red-600 hover:text-red-800 hover:underline"
-                        >
-                          Eliminar
-                        </button>
+                    <tr key={row.id} className="iv-table-row group">
+                      {COLUMN_DEFS.filter((c) => visibleCols[c.id]).map((c) => (
+                        <td key={c.id} className="max-w-0 px-2 py-2 align-top text-stone-800 sm:px-2.5">
+                          {renderCell(row, c.id)}
+                        </td>
+                      ))}
+                      <td className="sticky right-0 z-[1] whitespace-nowrap bg-white px-2 py-2 pl-4 text-right shadow-[-6px_0_8px_-4px_rgba(0,0,0,0.05)] transition-colors group-hover:bg-teal-50/40 sm:px-2.5">
+                        <span className="inline-flex items-center gap-0.5 rounded-lg pl-1">
+                          <button
+                            type="button"
+                            onClick={() => openEdit(row)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-teal-700 transition hover:bg-teal-50 hover:text-teal-900"
+                            title="Editar"
+                            aria-label="Editar propietat"
+                          >
+                            <IconPencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => remove(row.id)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50 hover:text-red-800"
+                            title="Eliminar"
+                            aria-label="Eliminar propietat"
+                          >
+                            <IconTrash className="h-4 w-4" />
+                          </button>
+                        </span>
                       </td>
                     </tr>
                   ))}
