@@ -69,8 +69,10 @@ export async function runSync(rows) {
   const qdrantUrl = (process.env.QDRANT_URL || '').trim();
   const qdrantKey = (process.env.QDRANT_API_KEY || '').trim();
 
+  const parsed = new URL(qdrantUrl);
   const client = new QdrantClient({
     url: qdrantUrl,
+    port: parsed.port ? parseInt(parsed.port, 10) : (parsed.protocol === 'https:' ? 443 : 6333),
     ...(qdrantKey ? { apiKey: qdrantKey } : {}),
   });
 
