@@ -1,12 +1,16 @@
 const N8N_ALERT_URL = process.env.N8N_ALERT_WEBHOOK_URL;
 const N8N_FORM_URL = process.env.WEBHOOK_FORMULARIO_ENVIADO;
 
-export async function notifyN8nAlert(lead, requirementName) {
+export async function notifyN8nAlert(lead, requirement) {
   if (!N8N_ALERT_URL) return;
 
   const payload = {
     event: 'lead_alert',
-    requirement_name: requirementName,
+    requirement_name: requirement.name ?? requirement,
+    notify_whatsapp: requirement.notify_whatsapp ?? false,
+    notify_email: requirement.notify_email ?? false,
+    admin_phone: requirement.admin_phone ?? null,
+    admin_email: requirement.admin_email ?? null,
     lead: { ...lead },
     at: new Date().toISOString(),
   };

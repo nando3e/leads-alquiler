@@ -160,7 +160,7 @@ export async function postLead(req, res) {
 
       await recordAlertSent(leadId, req.id, leadPlain);
       await updateLeadAlertSentAt(leadId);
-      await notifyN8nAlert(leadPlain, req.name);
+      await notifyN8nAlert(leadPlain, req);
       if (req.notify_whatsapp && req.admin_phone) {
         await notifyAdminWhatsApp(req.admin_phone, leadPlain, req.name);
       }
