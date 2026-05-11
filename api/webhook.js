@@ -1,5 +1,6 @@
 const N8N_ALERT_URL = process.env.N8N_ALERT_WEBHOOK_URL;
 const N8N_FORM_URL = process.env.WEBHOOK_FORMULARIO_ENVIADO;
+const N8N_MATCH_URL = process.env.N8N_MATCH_WEBHOOK_URL;
 
 export async function notifyN8nAlert(lead, requirement) {
   if (!N8N_ALERT_URL) return;
@@ -23,6 +24,31 @@ export async function notifyN8nAlert(lead, requirement) {
 
   if (!res.ok) {
     console.error('n8n alert webhook failed', res.status, await res.text());
+  }
+}
+
+export async function notifyPropertyLeadMatch(lead, property, matchScore) {
+  if (!N8N_MATCH_URL) return;
+
+  const payload = {
+    event: 'property_lead_match',
+    match_score: matchScore,
+    property: { ...property },
+    lead: { ...lead },
+    at: new Date().toISOString(),
+  };
+
+  try {
+    const res = await fetch(N8N_MATCH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      console.error('n8n match webhook failed', res.status, await res.text());
+    }
+  } catch (err) {
+    console.error('n8n match webhook error', err);
   }
 }
 

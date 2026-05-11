@@ -90,6 +90,36 @@ function buildUpdateLead(body) {
   };
 }
 
+/**
+ * Comprueba un lead contra todas las reglas de alerta activas.
+ * Se llama tras crear o editar un lead (desde bot, panel, o patch).
+ */
+async function runAlertCheck(lead) {
+  try {
+    const leadPlain = { ...lead };
+    const leadId = lead.id;
+    const requirements = await getActiveAlertRequirements();
+    for (const req of requirements) {
+      const criteria = req.criteria || {};
+      if (!leadMatchesCriteria(leadPlain, criteria)) continue;
+      const already = await wasAlertAlreadySent(leadId, req.id);
+      if (already) continue;
+
+      await recordAlertSent(leadId, req.id, leadPlain);
+      await updateLeadAlertSentAt(leadId);
+      await notifyN8nAlert(leadPlain, req);
+      if (req.notify_whatsapp && req.admin_phone) {
+        await notifyAdminWhatsApp(req.admin_phone, leadPlain, req.name);
+      }
+      if (req.notify_email && req.admin_email) {
+        await notifyAdminEmail(req.admin_email, leadPlain, req.name);
+      }
+    }
+  } catch (err) {
+    console.error('runAlertCheck error', err);
+  }
+}
+
 function validateLaborFields(body) {
   for (const key of REQUIRED_LABOR_FIELDS) {
     const v = (body[key] || '').trim();
@@ -133,6 +163,7 @@ export async function postLead(req, res) {
       const { text, values } = buildUpdateLead({ ...body, id: existingId });
       const update = await query(text, values);
       const lead = update.rows[0];
+      await runAlertCheck(lead);
       const config = await getPanelConfig();
       const message = await getLocalizedMsg(config, 'msg_form_updated', lang);
       return res.status(200).json({
@@ -146,28 +177,9 @@ export async function postLead(req, res) {
     const { text, values } = buildInsertLead(body);
     const insert = await query(text, values);
     const lead = insert.rows[0];
-    const leadId = lead.id;
-    const leadPlain = { ...lead };
 
-    await notifyFormularioEnviado(leadPlain);
-
-    const requirements = await getActiveAlertRequirements();
-    for (const req of requirements) {
-      const criteria = req.criteria || {};
-      if (!leadMatchesCriteria(leadPlain, criteria)) continue;
-      const already = await wasAlertAlreadySent(leadId, req.id);
-      if (already) continue;
-
-      await recordAlertSent(leadId, req.id, leadPlain);
-      await updateLeadAlertSentAt(leadId);
-      await notifyN8nAlert(leadPlain, req);
-      if (req.notify_whatsapp && req.admin_phone) {
-        await notifyAdminWhatsApp(req.admin_phone, leadPlain, req.name);
-      }
-      if (req.notify_email && req.admin_email) {
-        await notifyAdminEmail(req.admin_email, leadPlain, req.name);
-      }
-    }
+    await notifyFormularioEnviado({ ...lead });
+    await runAlertCheck(lead);
 
     const whatsappNumber = body.whatsapp_number || null;
     if (whatsappNumber) {
@@ -192,6 +204,20 @@ export async function postLead(req, res) {
       error: 'server_error',
       ...(isDev && { message: err.message, stack: err.stack }),
     });
+  }
+}
+
+export async function createLeadPanel(req, res) {
+  try {
+    const body = req.body || {};
+    const { text, values } = buildInsertLead(body);
+    const insert = await query(text, values);
+    const lead = insert.rows[0];
+    await runAlertCheck(lead);
+    return res.status(201).json(lead);
+  } catch (err) {
+    console.error('createLeadPanel', err);
+    return res.status(500).json({ error: 'server_error', message: err.message });
   }
 }
 
@@ -317,7 +343,9 @@ export async function patchLead(req, res) {
     );
     const r = await query('SELECT * FROM leads WHERE id = $1', [id]);
     if (r.rows.length === 0) return res.status(404).json({ error: 'not_found' });
-    return res.json(r.rows[0]);
+    const lead = r.rows[0];
+    await runAlertCheck(lead);
+    return res.json(lead);
   } catch (err) {
     console.error('patchLead', err);
     return res.status(500).json({ error: 'server_error' });

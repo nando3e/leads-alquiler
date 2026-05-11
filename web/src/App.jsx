@@ -8,6 +8,7 @@ import LeadsPage from './pages/LeadsPage';
 import AlertRulesPage from './pages/AlertRulesPage';
 import AlertSentPage from './pages/AlertSentPage';
 import PropertiesPage from './pages/PropertiesPage';
+import MatchesPage from './pages/MatchesPage';
 
 function ProtectedRoute({ children }) {
   const { token } = useAuth();
@@ -31,6 +32,7 @@ export default function App() {
         <Route index element={<DashboardPage />} />
         <Route path="leads" element={<LeadsPage />} />
         <Route path="properties" element={<PropertiesPage />} />
+        <Route path="matches" element={<MatchesPage />} />
         <Route path="alert-rules" element={<AlertRulesPage />} />
         <Route path="alert-sent" element={<AlertSentPage />} />
       </Route>

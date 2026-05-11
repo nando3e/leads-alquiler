@@ -3,6 +3,7 @@ import { runMigrations } from './migrate.js';
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
+import cron from 'node-cron';
 import { query } from './db.js';
 import { authMiddleware } from './auth.js';
 import * as leads from './routes/leads.js';
@@ -12,6 +13,8 @@ import * as panelConfig from './routes/panel-config.js';
 import * as alertSent from './routes/alert-sent.js';
 import * as dashboard from './routes/dashboard.js';
 import * as properties from './routes/properties.js';
+import * as matches from './routes/matches.js';
+import { runMatchForNewLeadsSafe } from './lib/matchEngine.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -47,6 +50,7 @@ app.get('/api/dashboard/stats', authMiddleware, dashboard.getStats);
 app.get('/api/panel-config', authMiddleware, panelConfig.getAll);
 app.put('/api/panel-config', authMiddleware, panelConfig.set);
 
+app.post('/api/leads/panel', authMiddleware, leads.createLeadPanel);
 app.get('/api/leads', authMiddleware, leads.getLeads);
 app.get('/api/leads/export', authMiddleware, leads.exportCsv);
 app.get('/api/leads/:id', authMiddleware, leads.getLeadById);
@@ -70,11 +74,25 @@ app.delete('/api/properties/:id', authMiddleware, properties.remove);
 app.post('/api/properties/import', authMiddleware, upload.single('file'), properties.importFile);
 app.post('/api/properties/sync-rag', authMiddleware, properties.syncRag);
 
+app.get('/api/matches', authMiddleware, matches.list);
+app.delete('/api/matches/:id', authMiddleware, matches.remove);
+
 runMigrations()
   .then(() => {
     app.listen(Number(PORT), '0.0.0.0', () => {
       console.log(`API http://0.0.0.0:${PORT}`);
     });
+
+    const cronSchedule = (process.env.MATCH_CRON_SCHEDULE || '').trim() || '0 3 * * *';
+    if (cron.validate(cronSchedule)) {
+      cron.schedule(cronSchedule, () => {
+        console.log('[cron] Ejecutando matching batch...');
+        runMatchForNewLeadsSafe();
+      });
+      console.log(`[cron] Match batch programado: ${cronSchedule}`);
+    } else {
+      console.warn(`[cron] MATCH_CRON_SCHEDULE inválido: "${cronSchedule}"`);
+    }
   })
   .catch((err) => {
     console.error('[migrate] Fatal error, server not started:', err);

@@ -6,6 +6,7 @@ const nav = [
   { to: '/panel', label: 'Dashboard', end: true },
   { to: '/panel/leads', label: 'Leads', end: false },
   { to: '/panel/properties', label: 'Propietats', end: false },
+  { to: '/panel/matches', label: 'Matches', end: false },
   { to: '/panel/alert-rules', label: "Regles d'alerta", end: false },
   { to: '/panel/alert-sent', label: 'Alertes enviades', end: false },
 ];

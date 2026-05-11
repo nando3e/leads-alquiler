@@ -3,6 +3,7 @@ import XLSX from 'xlsx';
 import { query } from '../db.js';
 import { clearConfigCache } from '../panelConfig.js';
 import { runSyncSafe, validateRagEnv } from '../lib/qdrantSync.js';
+import { runMatchForPropertySafe } from '../lib/matchEngine.js';
 
 async function setPanelKeys(pairs) {
   clearConfigCache();
@@ -256,7 +257,9 @@ export async function create(req, res) {
         b.activo !== false,
       ]
     );
-    return res.status(201).json(r.rows[0]);
+    const created = r.rows[0];
+    runMatchForPropertySafe(created.id);
+    return res.status(201).json(created);
   } catch (err) {
     if (err.code === '23505') {
       return res.status(409).json({ error: 'duplicate_ref_code', message: 'Ya existe una propiedad con ese ref_code.' });
@@ -302,7 +305,9 @@ export async function update(req, res) {
       vals
     );
     if (r.rows.length === 0) return res.status(404).json({ error: 'not_found' });
-    return res.json(r.rows[0]);
+    const updated = r.rows[0];
+    if (updated.activo) runMatchForPropertySafe(updated.id);
+    return res.json(updated);
   } catch (err) {
     if (err.code === '23505') {
       return res.status(409).json({ error: 'duplicate_ref_code' });
@@ -346,6 +351,7 @@ export async function importFile(req, res) {
     let inserted = 0;
     let updated = 0;
     const errors = [];
+    const affectedIds = [];
 
     for (let n = 0; n < rows.length; n++) {
       const parsed = parseRow(rows[n]);
@@ -357,11 +363,12 @@ export async function importFile(req, res) {
       try {
         const ex = await query('SELECT id FROM properties WHERE ref_code = $1', [parsed.ref_code]);
         if (ex.rows.length > 0) {
-          await query(
+          const upd = await query(
             `UPDATE properties SET
               direccion = $1, zona = $2, tipo_operacion = $3, tipo_vivienda = $4, planta = $5, ascensor = $6,
               habitaciones = $7, banos = $8, garaje = $9, precio = $10, descripcion = $11, mascotas = $12, activo = $13, updated_at = now()
-              WHERE ref_code = $14`,
+              WHERE ref_code = $14
+              RETURNING id, activo`,
             [
               parsed.direccion,
               parsed.zona,
@@ -379,13 +386,15 @@ export async function importFile(req, res) {
               parsed.ref_code,
             ]
           );
+          if (upd.rows[0]?.activo) affectedIds.push(upd.rows[0].id);
           updated++;
         } else {
-          await query(
+          const ins = await query(
             `INSERT INTO properties (
               ref_code, direccion, zona, tipo_operacion, tipo_vivienda, planta, ascensor,
               habitaciones, banos, garaje, precio, descripcion, mascotas, activo
-            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+            RETURNING id, activo`,
             [
               parsed.ref_code,
               parsed.direccion,
@@ -403,12 +412,15 @@ export async function importFile(req, res) {
               parsed.activo,
             ]
           );
+          if (ins.rows[0]?.activo) affectedIds.push(ins.rows[0].id);
           inserted++;
         }
       } catch (e) {
         errors.push({ row: n + 2, reason: e.message || String(e) });
       }
     }
+
+    for (const pid of affectedIds) runMatchForPropertySafe(pid);
 
     return res.json({ ok: true, inserted, updated, skipped: errors.length, errors: errors.slice(0, 50) });
   } catch (err) {
